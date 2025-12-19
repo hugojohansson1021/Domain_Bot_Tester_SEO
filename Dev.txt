@@ -1,0 +1,13 @@
+# Eller manuellt om du vill
+source venv/bin/activate
+python advanced_bot_tester.py https://cybersajt.se
+deactivate
+
+
+
+# Skapa venv med python3
+python3 -m venv venv
+
+source venv/bin/activate
+
+pip install requests urllib3
