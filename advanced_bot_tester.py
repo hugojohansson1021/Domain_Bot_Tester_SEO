@@ -107,6 +107,10 @@ class AdvancedBotProtectionTester:
 
         # Bot treatment tracking
         self.bot_responses = {}
+
+        # Server performance tracking
+        self.server_performance_issues = []
+        self.server_info = {}
     
     def _normalize_url(self, url: str) -> str:
         """Normaliserar URL"""
@@ -130,9 +134,10 @@ class AdvancedBotProtectionTester:
         print("="*70 + "\n")
     
     def test_basic_connectivity(self) -> TestResult:
-        """Test 0: Grundläggande connectivity"""
-        self._log("Test 0: Basic Connectivity...", "🔌")
-        
+        """Test 0: Grundläggande connectivity med avancerad diagnostik"""
+        self._log("Test 0: Basic Connectivity & Diagnostics...", "🔌")
+
+        # Försök 1: Standard request med legitim browser user-agent
         try:
             start_time = time.time()
             response = requests.get(
@@ -143,7 +148,7 @@ class AdvancedBotProtectionTester:
                 allow_redirects=True
             )
             response_time = time.time() - start_time
-            
+
             return TestResult(
                 test_name="Basic Connectivity",
                 passed=True,
@@ -152,13 +157,120 @@ class AdvancedBotProtectionTester:
                 response_time=response_time,
                 severity="INFO"
             )
+        except requests.exceptions.Timeout:
+            self._log("  ⚠️ Timeout med standard request, kör diagnostik...", "")
+            return self._diagnose_connection_failure("TIMEOUT")
+        except requests.exceptions.ConnectionError as e:
+            self._log("  ⚠️ Connection error, kör diagnostik...", "")
+            return self._diagnose_connection_failure("CONNECTION_ERROR", str(e))
         except Exception as e:
-            return TestResult(
-                test_name="Basic Connectivity",
-                passed=False,
-                details=f"❌ Kunde inte nå servern: {str(e)[:100]}",
-                severity="CRITICAL"
+            self._log("  ⚠️ Oväntat fel, kör diagnostik...", "")
+            return self._diagnose_connection_failure("UNKNOWN", str(e))
+
+    def _diagnose_connection_failure(self, error_type: str, error_msg: str = "") -> TestResult:
+        """Avancerad diagnostik när connection failar"""
+        self._log("  🔍 Kör avancerad connection diagnostik...", "")
+
+        diagnostics = []
+        cloudflare_detected = False
+        connection_possible = False
+
+        # Test 1: Försök med full browser headers
+        try:
+            full_headers = {
+                "User-Agent": self.user_agents['legitimate'][0],
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "sv-SE,sv;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Cache-Control": "max-age=0"
+            }
+
+            response = requests.get(
+                self.target_url,
+                headers=full_headers,
+                timeout=self.timeout + 5,  # Lite längre timeout
+                verify=False,
+                allow_redirects=True
             )
+
+            connection_possible = True
+            diagnostics.append("✅ Connection fungerar med kompletta browser headers")
+
+            # Kolla efter Cloudflare
+            if 'cloudflare' in response.text.lower() or 'cf-ray' in str(response.headers).lower():
+                cloudflare_detected = True
+                diagnostics.append("⚠️ Cloudflare detekterat - Kan blockera Python requests")
+
+        except requests.exceptions.Timeout:
+            diagnostics.append("❌ Timeout även med kompletta headers (>15s)")
+        except Exception as e:
+            diagnostics.append(f"❌ Connection failure: {str(e)[:50]}")
+
+        # Test 2: Testa DNS resolution
+        try:
+            parsed = urlparse(self.target_url)
+            hostname = parsed.netloc
+            import socket
+            ip = socket.gethostbyname(hostname)
+            diagnostics.append(f"✅ DNS fungerar: {hostname} → {ip}")
+        except Exception as e:
+            diagnostics.append(f"❌ DNS failure: Kan inte resolva {hostname}")
+            self.seo_issues.append("DNS resolution failure - KRITISKT för SEO")
+
+        # Test 3: Försök med curl-liknande headers (minimal)
+        if not connection_possible:
+            try:
+                curl_headers = {
+                    "User-Agent": "curl/7.68.0",
+                    "Accept": "*/*"
+                }
+
+                response = requests.get(
+                    self.target_url,
+                    headers=curl_headers,
+                    timeout=self.timeout + 5,
+                    verify=False
+                )
+
+                connection_possible = True
+                diagnostics.append("✅ Connection fungerar som 'curl' - Python requests blockeras specifikt")
+
+            except:
+                diagnostics.append("❌ Connection failure även som 'curl'")
+
+        # Generera SEO-impact analys
+        if not connection_possible:
+            self.seo_issues.append("Server nås inte alls - KRITISKT: Googlebot kan inte crawla sidan")
+            severity = "CRITICAL"
+            impact = "🚨 KRITISKT FÖR SEO: Om verktyget inte kan nå sidan, kan troligen inte Googlebot heller"
+        elif cloudflare_detected:
+            self.seo_issues.append("Cloudflare blockerar Python requests - kan påverka vissa crawlers")
+            severity = "HIGH"
+            impact = "⚠️ Cloudflare blockerar script-baserade requests - Kontrollera att Googlebot är whitelistad"
+        else:
+            severity = "MEDIUM"
+            impact = "⚠️ Connection-problem detekterat - Kan påverka crawlbarhet"
+
+        # Bygg detaljerat felmeddelande
+        details_parts = [impact]
+        if error_type == "TIMEOUT":
+            details_parts.append(f"Timeout ({self.timeout}s) - Server svarar för långsamt")
+        details_parts.extend(diagnostics[:3])  # Visa max 3 diagnostik-rader
+
+        details = "\n   ".join(details_parts)
+
+        return TestResult(
+            test_name="Basic Connectivity",
+            passed=False,
+            details=details,
+            severity=severity
+        )
     
     def test_aggressive_rate_limiting(self) -> TestResult:
         """Test 1: Aggressiv Rate Limiting"""
@@ -1239,6 +1351,277 @@ class AdvancedBotProtectionTester:
                 severity="MEDIUM"
             )
 
+    def test_server_performance(self) -> TestResult:
+        """Test 16: Server Performance Analysis - TTFB & Response Times"""
+        self._log("Test 16: Server Performance Analysis...", "⚡")
+
+        try:
+            response_times = []
+            ttfb_times = []
+
+            # Gör 5 requests för att få genomsnittlig performance
+            for i in range(5):
+                try:
+                    start = time.time()
+                    response = requests.get(
+                        self.target_url,
+                        headers={'User-Agent': self.user_agents['legitimate'][0]},
+                        timeout=self.timeout,
+                        verify=False,
+                        stream=True  # För att mäta TTFB
+                    )
+
+                    # Time To First Byte (TTFB)
+                    ttfb = time.time() - start
+                    ttfb_times.append(ttfb)
+
+                    # Läs hela responsen
+                    _ = response.content
+                    total_time = time.time() - start
+                    response_times.append(total_time)
+
+                except Exception as e:
+                    continue
+
+                time.sleep(0.5)
+
+            if not response_times:
+                return TestResult(
+                    test_name="Server Performance",
+                    passed=False,
+                    details="❌ Kunde inte mäta server performance",
+                    severity="HIGH"
+                )
+
+            avg_ttfb = sum(ttfb_times) / len(ttfb_times)
+            avg_response = sum(response_times) / len(response_times)
+            max_response = max(response_times)
+            min_response = min(response_times)
+
+            # Spara server info
+            self.server_info['avg_ttfb'] = avg_ttfb
+            self.server_info['avg_response_time'] = avg_response
+            self.server_info['response_time_variance'] = max_response - min_response
+
+            # Bedöm performance
+            issues = []
+
+            # TTFB bedömning (Google rekommenderar <200ms, max 600ms)
+            if avg_ttfb > 1.0:  # >1s
+                issues.append(f"TTFB mycket långsam ({avg_ttfb:.2f}s)")
+                self.server_performance_issues.append(f"TTFB {avg_ttfb:.2f}s - KRITISKT långsamt")
+                severity = "CRITICAL"
+            elif avg_ttfb > 0.6:  # >600ms
+                issues.append(f"TTFB långsam ({avg_ttfb:.2f}s)")
+                self.server_performance_issues.append(f"TTFB {avg_ttfb:.2f}s - Långsammare än Google's rekommendation")
+                severity = "HIGH"
+            elif avg_ttfb > 0.2:  # >200ms
+                issues.append(f"TTFB acceptabel ({avg_ttfb:.2f}s)")
+                severity = "MEDIUM"
+            else:
+                severity = "INFO"
+
+            # Total response time bedömning
+            if avg_response > 3.0:
+                issues.append(f"Mycket långsam server ({avg_response:.2f}s)")
+                self.server_performance_issues.append(f"Response time {avg_response:.2f}s - Mycket långsam")
+                severity = "CRITICAL"
+            elif avg_response > 2.0:
+                issues.append(f"Långsam server ({avg_response:.2f}s)")
+                severity = "HIGH"
+
+            # Variabilitet
+            variance = max_response - min_response
+            if variance > 1.0:
+                issues.append(f"Inkonsekvent performance (varierar {variance:.2f}s)")
+                self.server_performance_issues.append("Server performance inkonsekvent")
+
+            if not issues or severity == "INFO":
+                return TestResult(
+                    test_name="Server Performance",
+                    passed=True,
+                    details=f"✅ Bra server performance: TTFB {avg_ttfb:.2f}s, Avg {avg_response:.2f}s - BRA för SEO",
+                    severity="INFO"
+                )
+            else:
+                return TestResult(
+                    test_name="Server Performance",
+                    passed=False,
+                    details=f"⚠️ Performance-problem: {'; '.join(issues)} - Påverkar SEO negativt",
+                    severity=severity
+                )
+
+        except Exception as e:
+            return TestResult(
+                test_name="Server Performance",
+                passed=False,
+                details=f"⚠️ Fel vid test: {str(e)[:100]}",
+                severity="MEDIUM"
+            )
+
+    def test_server_load_handling(self) -> TestResult:
+        """Test 17: Server Load Handling - Klarar servern belastning?"""
+        self._log("Test 17: Server Load Handling...", "💪")
+
+        try:
+            import concurrent.futures
+
+            def make_request():
+                try:
+                    start = time.time()
+                    response = requests.get(
+                        self.target_url,
+                        headers={'User-Agent': self.user_agents['legitimate'][0]},
+                        timeout=self.timeout,
+                        verify=False
+                    )
+                    return {
+                        'success': True,
+                        'time': time.time() - start,
+                        'code': response.status_code
+                    }
+                except Exception as e:
+                    return {
+                        'success': False,
+                        'time': None,
+                        'error': str(e)[:50]
+                    }
+
+            # Skicka 10 samtidiga requests
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(make_request) for _ in range(10)]
+                results = [f.result() for f in concurrent.futures.as_completed(futures)]
+
+            successful = [r for r in results if r['success']]
+            failed = [r for r in results if not r['success']]
+
+            if not successful:
+                self.server_performance_issues.append("Server klarar inte concurrent requests")
+                return TestResult(
+                    test_name="Server Load Handling",
+                    passed=False,
+                    details=f"❌ Server klarar inte belastning: 0/{len(results)} requests lyckades - KRITISKT för SEO",
+                    severity="CRITICAL"
+                )
+
+            avg_concurrent_time = sum(r['time'] for r in successful) / len(successful)
+            success_rate = len(successful) / len(results) * 100
+
+            # Jämför med baseline (om den finns)
+            baseline = self.server_info.get('avg_response_time', 0)
+            if baseline > 0:
+                slowdown = (avg_concurrent_time / baseline - 1) * 100
+            else:
+                slowdown = 0
+
+            if success_rate < 70:
+                self.server_performance_issues.append(f"Svag server - endast {success_rate:.0f}% requests lyckades under load")
+                return TestResult(
+                    test_name="Server Load Handling",
+                    passed=False,
+                    details=f"❌ Svag server: {success_rate:.0f}% success rate, {len(failed)} failures - Server klarar inte normal crawl-belastning",
+                    severity="CRITICAL"
+                )
+            elif slowdown > 100:  # >100% långsammare under load
+                self.server_performance_issues.append(f"Server presterar {slowdown:.0f}% sämre under belastning")
+                return TestResult(
+                    test_name="Server Load Handling",
+                    passed=False,
+                    details=f"⚠️ Server långsam under load: {slowdown:.0f}% långsammare ({avg_concurrent_time:.2f}s vs {baseline:.2f}s baseline)",
+                    severity="HIGH"
+                )
+            elif slowdown > 50:
+                return TestResult(
+                    test_name="Server Load Handling",
+                    passed=False,
+                    details=f"ℹ️ Server något långsammare under load: {slowdown:.0f}% långsammare",
+                    severity="MEDIUM"
+                )
+            else:
+                return TestResult(
+                    test_name="Server Load Handling",
+                    passed=True,
+                    details=f"✅ Server klarar belastning bra: {success_rate:.0f}% success rate, {avg_concurrent_time:.2f}s avg - Kan hantera Googlebot crawling",
+                    severity="INFO"
+                )
+
+        except Exception as e:
+            return TestResult(
+                test_name="Server Load Handling",
+                passed=False,
+                details=f"⚠️ Fel vid test: {str(e)[:100]}",
+                severity="MEDIUM"
+            )
+
+    def test_server_technology_detection(self) -> TestResult:
+        """Test 18: Server Technology Detection"""
+        self._log("Test 18: Server Technology Detection...", "🔧")
+
+        try:
+            response = requests.get(
+                self.target_url,
+                headers={'User-Agent': self.user_agents['legitimate'][0]},
+                timeout=self.timeout,
+                verify=False
+            )
+
+            headers = response.headers
+            detected_tech = []
+
+            # Server header
+            server = headers.get('Server', 'Unknown')
+            detected_tech.append(f"Server: {server}")
+            self.server_info['server'] = server
+
+            # Identifiera teknologier
+            tech_indicators = {
+                'Cloudflare': 'cloudflare' in server.lower() or 'cf-ray' in str(headers).lower(),
+                'Nginx': 'nginx' in server.lower(),
+                'Apache': 'apache' in server.lower(),
+                'IIS': 'iis' in server.lower() or 'microsoft' in server.lower(),
+                'WordPress': 'wp-' in str(headers).lower() or '/wp-' in response.text[:5000],
+                'PHP': 'x-powered-by' in str(headers).lower() and 'php' in str(headers).lower(),
+                'Plesk': 'plesk' in server.lower() or 'x-powered-by' in str(headers).lower() and 'plesk' in str(headers).lower()
+            }
+
+            detected = [tech for tech, detected in tech_indicators.items() if detected]
+
+            if detected:
+                detected_tech.append(f"Teknologier: {', '.join(detected)}")
+
+            # Bedöm server quality
+            weak_servers = []
+            if 'Apache' in detected and '2.2' in server:
+                weak_servers.append("Gammal Apache-version")
+            if 'PHP' in detected:
+                php_version = headers.get('X-Powered-By', '')
+                if any(old in php_version for old in ['5.', '7.0', '7.1', '7.2']):
+                    weak_servers.append("Gammal PHP-version")
+
+            if weak_servers:
+                self.server_performance_issues.append(f"Föråldrad server-teknologi: {', '.join(weak_servers)}")
+                return TestResult(
+                    test_name="Server Technology",
+                    passed=False,
+                    details=f"⚠️ {' | '.join(detected_tech)} | Föråldrat: {', '.join(weak_servers)}",
+                    severity="MEDIUM"
+                )
+            else:
+                return TestResult(
+                    test_name="Server Technology",
+                    passed=True,
+                    details=f"ℹ️ {' | '.join(detected_tech)}",
+                    severity="INFO"
+                )
+
+        except Exception as e:
+            return TestResult(
+                test_name="Server Technology",
+                passed=False,
+                details=f"⚠️ Fel vid test: {str(e)[:100]}",
+                severity="LOW"
+            )
+
     def calculate_security_score(self) -> Tuple[int, str]:
         """Beräknar säkerhetspoäng med viktning"""
         weights = {
@@ -1277,6 +1660,32 @@ class AdvancedBotProtectionTester:
     def generate_recommendations(self) -> List[str]:
         """Genererar rekommendationer baserat på resultat"""
         recommendations = []
+
+        # CONNECTION/KRITISKA PROBLEM FÖRST
+        critical_connection_issues = [issue for issue in self.seo_issues if "nås inte alls" in issue or "DNS" in issue]
+        if critical_connection_issues:
+            recommendations.append("🚨 KRITISKA CONNECTION-PROBLEM (ÅTGÄRDA OMEDELBART):")
+            for issue in critical_connection_issues:
+                if "nås inte alls" in issue:
+                    recommendations.append("  🔴 Servern kan inte nås - Googlebot kan INTE crawla sidan")
+                    recommendations.append("     → Kontrollera att servern är uppe")
+                    recommendations.append("     → Testa manuellt: curl -I [URL]")
+                    recommendations.append("     → Kolla Google Search Console för crawl errors")
+                elif "DNS" in issue:
+                    recommendations.append("  🔴 DNS-problem - Domänen kan inte resolvas")
+                    recommendations.append("     → Kontrollera DNS-inställningar hos domänleverantör")
+            recommendations.append("")
+
+        # Cloudflare-specifika problem
+        cloudflare_issues = [issue for issue in self.seo_issues if "Cloudflare" in issue]
+        if cloudflare_issues:
+            recommendations.append("☁️ CLOUDFLARE BOT-BLOCKERING:")
+            recommendations.append("  ⚠️ Cloudflare blockerar Python requests men tillåter curl")
+            recommendations.append("     → Whitelist Googlebot i Cloudflare (Security > Bots)")
+            recommendations.append("     → Sänk 'Bot Fight Mode' eller använd 'Super Bot Fight Mode' med exceptions")
+            recommendations.append("     → Verifiera att 'Verified Bots' är allowade")
+            recommendations.append("     → Testa: https://www.cloudflare.com/learning/bots/what-is-a-bot/")
+            recommendations.append("")
 
         # SÄKERHETSREKOMMENDATIONER
         recommendations.append("🛡️ SÄKERHETSREKOMMENDATIONER:")
@@ -1322,6 +1731,37 @@ class AdvancedBotProtectionTester:
             recommendations.append("🔍 SEO-REKOMMENDATIONER:")
             recommendations.append("  ✅ Inga SEO-problem detekterade!")
 
+        # SERVER PERFORMANCE-REKOMMENDATIONER
+        if self.server_performance_issues:
+            recommendations.append("")
+            recommendations.append("⚡ SERVER PERFORMANCE-REKOMMENDATIONER:")
+            for issue in self.server_performance_issues:
+                if "TTFB" in issue and "KRITISKT" in issue:
+                    recommendations.append(f"  🔴 {issue}")
+                    recommendations.append("     → Optimera server-respons (caching, CDN, server-upgrade)")
+                    recommendations.append("     → Använd Cloudflare eller annat CDN för att förbättra TTFB")
+                elif "TTFB" in issue:
+                    recommendations.append(f"  ⚠️ {issue}")
+                    recommendations.append("     → Implementera caching (Redis, Memcached)")
+                    recommendations.append("     → Optimera databas-queries")
+                elif "långsam" in issue.lower():
+                    recommendations.append(f"  🔴 {issue}")
+                    recommendations.append("     → Uppgradera server-resurser (CPU, RAM)")
+                    recommendations.append("     → Byt till snabbare webbhotell")
+                    recommendations.append("     → Långsam server påverkar SEO rankings negativt")
+                elif "klarar inte" in issue.lower():
+                    recommendations.append(f"  🔴 {issue}")
+                    recommendations.append("     → Server för svag - kan inte hantera Googlebot crawling")
+                    recommendations.append("     → Uppgradera hosting-plan OMEDELBART")
+                elif "inkonsekvent" in issue.lower():
+                    recommendations.append(f"  ⚠️ {issue}")
+                    recommendations.append("     → Instabil server kan skada user experience och SEO")
+                elif "föråldrad" in issue.lower():
+                    recommendations.append(f"  ⚠️ {issue}")
+                    recommendations.append("     → Uppdatera server-programvara för säkerhet och performance")
+                else:
+                    recommendations.append(f"  ⚠️ {issue}")
+
         if not self.vulnerabilities and not self.seo_issues:
             recommendations = ["✅ Utmärkt säkerhet och SEO-vänlighet! Fortsätt övervaka och uppdatera regelbundet."]
 
@@ -1359,7 +1799,11 @@ class AdvancedBotProtectionTester:
             self.test_response_time_comparison,
             self.test_googlebot_stress_test,
             self.test_bot_differential_treatment,
-            self.test_progressive_blocking
+            self.test_progressive_blocking,
+            # Server Performance tester
+            self.test_server_performance,
+            self.test_server_load_handling,
+            self.test_server_technology_detection
         ]
         
         for test_method in test_methods:
@@ -1441,6 +1885,19 @@ class AdvancedBotProtectionTester:
             print("🔍 IDENTIFIERADE SEO-PROBLEM:")
             for issue in self.seo_issues:
                 print(f"   • {issue}")
+            print()
+
+        if self.server_performance_issues:
+            print("⚡ IDENTIFIERADE SERVER PERFORMANCE-PROBLEM:")
+            for issue in self.server_performance_issues:
+                print(f"   • {issue}")
+            if self.server_info:
+                if 'avg_ttfb' in self.server_info:
+                    print(f"   → TTFB: {self.server_info['avg_ttfb']:.3f}s")
+                if 'avg_response_time' in self.server_info:
+                    print(f"   → Avg Response Time: {self.server_info['avg_response_time']:.3f}s")
+                if 'server' in self.server_info:
+                    print(f"   → Server: {self.server_info['server']}")
             print()
 
         print("💡 REKOMMENDATIONER:")

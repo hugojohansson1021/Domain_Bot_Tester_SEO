@@ -1,6 +1,6 @@
 # Eller manuellt om du vill
 source venv/bin/activate
-python advanced_bot_tester.py https://test.se
+python advanced_bot_tester.py klemensson.com
 deactivate
 
 
