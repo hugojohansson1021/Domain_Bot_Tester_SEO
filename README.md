@@ -1,472 +1,301 @@
-# 🛡️ Bot Protection & SEO Crawlability Tester v4.0
+# SEO Crawlability Tester v5.0
 
-Ett professionellt Python-verktyg för att analysera **säkerhet** (bot-skydd), **SEO** (crawlbarhet), **server bot-behandling** och **AI bot-tillgång** på webbservrar. Verktyget är specialdesignat för att identifiera webbhotell-bot-skydd som skadar SEO genom att blockera eller throttla Googlebot.
+Ett professionellt verktyg för att testa hur sökmotorer, SEO-verktyg och AI-botar kan crawla din webbplats. Identifierar server-problem, bot-blockeringar och SEO-tekniska issues med detaljerade PDF-rapporter.
 
-## 📋 Vad är detta verktyg?
-
-Bot Protection & SEO Crawlability Tester är ett trippelfokuserat analysverktyg som:
-
-### 🛡️ Säkerhetsperspektiv
-Testar hur väl servern är skyddad mot automatiserad trafik, skadliga botar och crawlers.
-
-### 🔍 SEO-perspektiv
-Säkerställer att legitima sökmotorbotar (Googlebot, Bingbot, Ahrefs, etc.) kan nå sidan för indexering och ranking.
-
-### 🎯 Server Bot-behandling (NYT I v4.0!)
-**Specialdesignat för SEO-byråer och webbhotell-kunder:**
-- Detekterar om webbhotell blockerar eller throttlar Googlebot
-- Jämför exakt hur servern behandlar botar vs användare
-- Identifierar progressiv blockering (gradvis försämring)
-- Mäter response time-skillnader (bot throttling)
-- Perfekt för att diagnostisera SEO-problem orsak av aggressivt webbhotell-skydd
-
-Verktyget genererar en detaljerad rapport med:
-
-- **Säkerhetspoäng** (0-100) som visar övergripande skyddsnivå
-- **Identifiering av skyddslager** (Cloudflare, Akamai, ModSecurity, etc.)
-- **Sårbarhetsanalys** med konkreta rekommendationer
-- **SEO-problem** som blockerade sökmotorbotar, saknad sitemap, cloaking
-- **Detaljerade testresultat** för varje skyddsmekanisme
-
-### Vad testas?
-
-#### 🛡️ Säkerhetstester:
-1. **Rate Limiting** - Kontrollerar om servern begränsar antalet requests per tidsenhet
-2. **User-Agent Filtering** - Testar om suspekta user agents (python-requests, curl, scrapy) blockeras
-3. **Behavioral Analysis** - Analyserar om servern detekterar bot-liknande beteenden via header fingerprinting
-4. **WAF & Challenge Detection** - Identifierar Web Application Firewalls och JavaScript challenges
-5. **Advanced Fingerprinting** - Testar TLS fingerprinting, proxy-detektion och anonymiseringsverktyg
-6. **API Endpoint Protection** - Kontrollerar säkerheten på vanliga API-endpoints
-
-#### 🔍 SEO/Crawlbarhet-tester:
-7. **SEO Bot Accessibility** - Verifierar att Googlebot, Bingbot, Ahrefs, Semrush kan nå sidan
-8. **Robots.txt Analysis** - Analyserar robots.txt för blockeringar av kritiska botar
-9. **Sitemap Accessibility** - Kontrollerar om sitemap.xml finns och är tillgänglig
-10. **Cloaking Detection** - Detekterar om botar ser annat innehåll än användare (Google penalty risk)
-
-#### 🤖 AI Bot & Server Bot-behandling-tester:
-11. **AI Bot Accessibility** - Testar GPTBot, Claude-Web, Google-Extended, CCBot och andra AI crawlers
-12. **Response Time Comparison** - Jämför svarstider mellan botar och användare (detekterar bot throttling)
-13. **Googlebot Stress Test** - Testar specifikt om Googlebot blir rate-limitad vid normalt crawl-tempo
-14. **Bot Differential Treatment** - Jämför exakt hur servern behandlar Googlebot vs Bingbot vs användare
-15. **Progressive Blocking Detection** - Detekterar om Googlebot gradvis blockeras eller throttlas över tid
-
-## 🎯 Perfekt för SEO-byråer med webbhotell-problem
-
-**Problem:** Kunden har bra content men rankings sjunker, eller Google crawlar inte sidan ordentligt.
-
-**Lösning:** Verktyget identifierar om webbhotellets bot-skydd blockerar Googlebot!
-
-### Vanliga scenario verktyget upptäcker:
-
-1. **"Googlebot får 403 men user får 200"**
-   → Webbhotell blockerar Googlebot specifikt
-
-2. **"Googlebot blockerad efter 12 requests"**
-   → För aggressiv rate limiting för SEO-botar
-
-3. **"Googlebot 65% långsammare än användare"**
-   → Server throttlar botar (dåligt för crawl budget)
-
-4. **"Request 1-5 OK, 6-10 blockerade"**
-   → Progressiv blockering av Googlebot
-
-5. **"Sitemap.xml ej tillgänglig för Googlebot"**
-   → Bot-filter blockerar även sitemap
-
-Med verktygets rapport kan du:
-- ✅ Visa webbhotellet exakt vad som är fel
-- ✅ Få konkret data för support-ärenden
-- ✅ Motivera byte av webbhotell med bevis
-- ✅ Jämföra olika webbhotell innan migration
-
-## 🚀 Snabbstart - Steg för steg
-
-### Steg 1: Ladda ner projektet
+## Installation
 
 ```bash
-# Klona eller ladda ner projektet till din dator
-cd Desktop
-# Om du har projektet som ZIP, packa upp det
-# Om det är ett git-repo:
-# git clone <repository-url>
-cd Domain_Bot_Block_Tester
-```
-
-### Steg 2: Skapa virtuell miljö (venv)
-
-```bash
-# Skapa en ny virtuell miljö med Python 3
+# Skapa virtuell miljö
 python3 -m venv venv
-```
+source venv/bin/activate  # macOS/Linux
+# venv\Scripts\activate   # Windows
 
-### Steg 3: Aktivera virtuell miljö
-
-**På macOS/Linux:**
-```bash
-source venv/bin/activate
-```
-
-**På Windows:**
-```bash
-venv\Scripts\activate
-```
-
-Du vet att venv är aktiverad när du ser `(venv)` före din kommandoprompt.
-
-### Steg 4: Installera beroenden
-
-```bash
-# Installera alla nödvändiga paket från requirements.txt
+# Installera beroenden
 pip install -r requirements.txt
+
+# För PDF-generering (valfritt)
+pip install weasyprint
 ```
 
-### Steg 5: Kör verktyget
+## Användning
 
-**Grundläggande användning:**
 ```bash
-# Kör advanced version (rekommenderas)
+# Grundläggande test
 python advanced_bot_tester.py https://example.com
 
-# URL utan https:// fungerar också (läggs till automatiskt)
-python advanced_bot_tester.py example.com
+# Med PDF-rapport
+python advanced_bot_tester.py https://example.com --pdf
+
+# Tyst läge + JSON
+python advanced_bot_tester.py https://example.com --quiet --json
 ```
 
-**Med extra alternativ:**
-```bash
-# Exportera rapport till JSON
-python advanced_bot_tester.py https://example.com --json
+PDF-rapporten sparas automatiskt i `reports/`-mappen.
 
-# Tyst läge (mindre output)
-python advanced_bot_tester.py https://example.com --quiet
+---
 
-# Både JSON och tyst läge
-python advanced_bot_tester.py https://example.com --json --quiet
-```
+## Vad verktyget testar
 
-**Enklare version:**
-```bash
-# Kör basic version (snabbare, enklare tester)
-python bot_protection_tester.py https://example.com
-```
+### 1. Server Diagnostik (Fas för Fas)
 
-### Steg 6: Avsluta
+Mäter exakt var eventuella prestandaproblem finns genom att bryta ner anslutningen i 5 faser:
 
-```bash
-# När du är klar, deaktivera virtuell miljö
-deactivate
-```
+| Fas | Vad den mäter | Bra tid | Varning | Kritiskt |
+|-----|---------------|---------|---------|----------|
+| **DNS Lookup** | Domän → IP-adress | <100ms | >500ms | >1s |
+| **TCP Connect** | Anslutning till server | <200ms | >500ms | >1s |
+| **SSL Handshake** | HTTPS-förhandling | <300ms | >1s | >2s |
+| **TTFB** | Time To First Byte | <200ms | >600ms | >2s |
+| **Content Download** | Ladda ner HTML | <1s | >3s | >5s |
 
-## 📖 Komplett exempel
-
-```bash
-# 1. Navigera till projektet
-cd /Users/hugo.johansson/Desktop/Domain_Bot_Block_Tester
-
-# 2. Aktivera venv (om redan skapat)
-source venv/bin/activate
-
-# 3. Kör test mot en domän
-python advanced_bot_tester.py https://cybersajt.se
-
-# 4. Deaktivera venv när du är klar
-deactivate
-```
-
-## 💼 Exempel: Diagnostisera SEO-kundens webbhotell
-
-**Scenario:** Din kund på example-shop.se har bra content men rankings sjunker.
-
-```bash
-# Aktivera venv
-source venv/bin/activate
-
-# Kör full analys
-python advanced_bot_tester.py https://example-shop.se --json
-
-# Verktyget kör nu 16 tester och genererar rapport...
-```
-
-**Resultat kan visa:**
-```
-⚠️ IDENTIFIERADE SEO-PROBLEM:
-   • Googlebot rate-limitad efter endast 14 requests
-   • Googlebot får 52% långsammare svar (bot throttling)
-   • Server behandlar Googlebot annorlunda (HTTP 403 vs 200)
-   • Progressiv blockering: 5/5 OK först, 2/5 OK sedan
-
-💡 REKOMMENDATIONER:
-🔍 SEO-REKOMMENDATIONER:
-  🔴 Googlebot rate-limitad efter endast 14 requests - Justera WAF/bot-filter
-  🔴 Server behandlar Googlebot annorlunda (HTTP 403 vs 200) - KONTROLLERA WEBBHOTELL
-  🔴 Progressiv blockering detekterad - Kan förhindra fullständig crawling
-```
-
-**Nu har du konkret bevis att visa webbhotellet!** 📊
-
-## 📊 Output & Rapporter
-
-Verktyget ger en detaljerad rapport med:
-
-- ✅/❌ Status för varje test (både säkerhet och SEO)
-- 📊 Säkerhetspoäng (0-100)
-- 🎯 Övergripande bedömning (Svagt/Medel/Starkt bot-skydd)
-- 🛡️ Detekterade säkerhetslager (WAF, CDN, etc.)
-- ⚠️ Säkerhetssårbarheter
-- 🔍 SEO-problem (blockerade botar, saknad sitemap, etc.)
-- 💡 Rekommendationer för både säkerhet och SEO
-
-### Exempel output:
+**Automatisk flaskhals-identifiering:** Om en fas är långsam visas orsak och lösningsförslag.
 
 ```
-======================================================================
-🛡️  BOT PROTECTION & SEO CRAWLABILITY TESTER v4.0
-======================================================================
-Target: https://example.com
-Tid: 2025-12-19 14:30:00
-Testar: Säkerhet + SEO + Server Bot-behandling + AI Botar
-======================================================================
+┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+│   ✓    │ │   ✓    │ │   ✓    │ │   ⚠    │ │   ✓    │
+│  8ms   │ │  15ms  │ │  45ms  │ │ 2.5s   │ │  120ms │
+│  DNS   │ │  TCP   │ │  SSL   │ │  TTFB  │ │Download│
+└────────┘ └────────┘ └────────┘ └────────┘ └────────┘
 
-🔌 Test 0: Basic Connectivity...
-📊 Test 1: Aggressive Rate Limiting...
-🤖 Test 2: User-Agent Filtering...
-🔍 Test 3: Behavioral Analysis...
-⚡ Test 4: WAF & Challenge Detection...
-🔬 Test 5: Advanced Fingerprinting...
-🔧 Test 6: API Endpoint Protection...
-🔍 Test 7: SEO Bot Accessibility...
-🤖 Test 8: Robots.txt Analysis...
-🗺️ Test 9: Sitemap Accessibility...
-👁️ Test 10: Cloaking Detection...
-🤖 Test 11: AI Bot Accessibility...
-⏱️ Test 12: Response Time Comparison (Bot Throttling)...
-🚨 Test 13: Googlebot Stress Test (Rate Limiting)...
-⚖️ Test 14: Bot Differential Treatment...
-📉 Test 15: Progressive Blocking Detection...
-
-============================================================
-📋 RESULTAT
-============================================================
-
-Rate Limiting:
-  ✅ Blockad efter 15 requests (HTTP 429)
-
-User-Agent Blocking:
-  ✅ Blockerar 3/5 suspekta user agents
-
-Header Fingerprinting:
-  ✅ Servern analyserar request headers (olika svar: 403 vs 200)
-
-JavaScript Challenge:
-  ✅ JS Challenge detekterad: cloudflare, challenge
-
-IP Reputation:
-  ✅ Blockerar proxy/VPN headers (HTTP 403)
-
-Automated Tools Detection:
-  ❌ Blockerar inga automatiserade verktyg
-
-============================================================
-🎯 SÄKERHETSPOÄNG: 83/100
-📊 BEDÖMNING: 🟢 STARKT BOT-SKYDD
-============================================================
-
-💡 REKOMMENDATIONER:
-  ✅ Servern har starkt bot-skydd!
-
-============================================================
+⚠ Problem: TTFB är 2.5s - Serverns backend/databas är långsam.
 ```
 
-## Säkerhetspoäng
+---
 
-- **80-100**: 🟢 Starkt bot-skydd
-- **50-79**: 🟡 Medel bot-skydd
-- **0-49**: 🔴 Svagt bot-skydd
+### 2. Server Prestanda
 
-## 💼 Användningsområden
+| Metric | Beskrivning | SEO-påverkan |
+|--------|-------------|--------------|
+| **TTFB** | Time To First Byte | Core Web Vitals, Google mäter detta |
+| **SSL-certifikat** | Giltighet + dagar kvar | HTTPS är en rankingfaktor |
+| **Komprimering** | gzip eller brotli | Snabbare LCP |
+| **Cache-headers** | Cache-Control | Crawl budget |
+| **HTTP-version** | HTTP/1.1 eller HTTP/2 | Snabbare laddning |
+| **Server** | nginx, Apache, Cloudflare | Info |
 
-### 🛡️ Säkerhet:
-- **Säkerhetsrevision**: Testa ditt eget bot-skydd
-- **Konkurrentanalys**: Se hur konkurrenter skyddar sina sajter
-- **Penetration testing**: Identifiera svagheter i bot-skydd
-- **OSINT**: Analysera målsajters säkerhetsnivå
+---
 
-### 🔍 SEO & Digital Marketing:
-- **SEO-audit**: Säkerställ att sökmotorbotar kan nå din sida
-- **Teknisk SEO**: Verifiera robots.txt och sitemap.xml konfiguration
-- **Competitor research**: Analysera konkurrenters crawlbarhet
-- **Site migration**: Testa att nya säkerhetsinställningar inte blockerar SEO-botar
-- **Agency services**: Erbjud crawlability-analys till kunder
+### 3. Bot-åtkomst
 
-### 🎯 Webbhotell & Server Bot-skydd (NYT I v4.0!):
-- **Diagnostisera SEO-problem**: Identifiera om webbhotell blockerar Googlebot
-- **Kund-rapporter**: Visa konkret bevis på server bot-diskriminering
-- **Hosting-jämförelse**: Testa olika webbhotell innan migration
-- **Support-ärenden**: Ge teknisk data till webbhotell support
-- **Rate limiting-analys**: Visa om Googlebot får sämre behandling än användare
-- **Perfekt för SEO-byråer**: Diagnostisera varför kunders rankings sjunker trots bra content
+Testar 26 olika botar genom att simulera deras User-Agent:
 
-## VARNING ⚠️
-
-Detta verktyg ska **endast användas på:**
-- Din egen webbplats
-- Webbplatser där du har tillstånd att testa
-- I utbildningssyfte på testmiljöer
-
-Obehörig testning kan vara olaglig enligt cybersäkerhetslagstiftning.
-
-## 🔬 Tekniska detaljer
-
-### 🛡️ Säkerhetstester:
-
-**Test 1: Rate Limiting**
-Skickar 50 requests snabbt med minimal delay (0.05s) för att detektera rate limiting. Letar efter HTTP 429, 403, eller 503 response codes.
-
-**Test 2: User-Agent Filtering**
-Testar suspekta user agents som:
-- python-requests/2.31.0
-- curl/7.68.0
-- Wget, scrapy, Go-http-client
-
-**Test 3: Behavioral Analysis**
-Jämför response mellan minimala headers (bot-like) och kompletta browser headers (human-like) för att detektera fingerprinting.
-
-**Test 4: WAF & Challenge Detection**
-Identifierar Web Application Firewalls och JavaScript challenges från:
-- Cloudflare, Akamai, Imperva
-- AWS WAF, Sucuri, Wordfence
-- ModSecurity, BIG-IP ASM, Barracuda
-
-**Test 5: Advanced Fingerprinting**
-Testar med:
-- Proxy headers (X-Forwarded-For, X-Real-IP)
-- Tor exit node signatures
-- Missing browser headers
-
-**Test 6: API Endpoint Protection**
-Testar vanliga API endpoints:
-- /api/, /api/v1/, /wp-json/
-- /graphql, /.env, /admin/
-
-### 🔍 SEO/Crawlbarhet-tester:
-
-**Test 7: SEO Bot Accessibility**
-Verifierar att legitima botar kan nå sidan:
-- Sökmotorbotar: Googlebot, Bingbot, Yahoo Slurp
-- SEO-verktyg: AhrefsBot, SemrushBot, MJ12bot
-- Social: Facebook External Hit
-
-**Test 8: Robots.txt Analysis**
-- Kontrollerar om robots.txt finns
-- Analyserar om kritiska botar (Googlebot, Bingbot) blockeras
-- Verifierar sitemap-referens i robots.txt
-
-**Test 9: Sitemap Accessibility**
-Testar vanliga sitemap-platser:
-- /sitemap.xml
-- /sitemap_index.xml
-- /sitemap-index.xml
-
-**Test 10: Cloaking Detection**
-Jämför content mellan vanlig användare och Googlebot:
-- >10% skillnad = möjlig cloaking (Google penalty risk)
-- 5-10% = liten skillnad
-- <5% = ingen cloaking detekterad
-
-### 🤖 AI Bot & Server Bot-behandling-tester:
-
-**Test 11: AI Bot Accessibility**
-Testar om AI-botar kan nå sidan:
-- GPTBot (OpenAI), ChatGPT-User
-- Claude-Web (Anthropic)
-- Google-Extended (Google AI training)
-- CCBot (Common Crawl)
-- PerplexityBot, Bytespider, etc.
-
-**Test 12: Response Time Comparison** ⭐ KRITISKT FÖR SEO
-Jämför svarstider över 3 requests:
-- Användare vs Googlebot
-- Detekterar bot throttling (>50% långsammare = KRITISKT)
-- Viktigt för crawl budget och ranking
-
-**Test 13: Googlebot Stress Test** ⭐ KRITISKT FÖR SEO
-Skickar 25 requests som Googlebot:
-- Detekterar rate limiting specifikt för Googlebot
-- <15 requests = KRITISKT (för aggressivt)
-- 15-20 requests = Varning
-- >20 requests = OK
-
-**Test 14: Bot Differential Treatment** ⭐ KRITISKT FÖR SEO
-Jämför exakt samma sida med:
-- Vanlig användare (Chrome)
+#### Sökmotorbotar (3 st)
 - Googlebot
 - Bingbot
-Analyserar: HTTP status code, content length, response time
-Detekterar om servern diskriminerar SEO-botar
+- Yahoo Slurp
 
-**Test 15: Progressive Blocking Detection** ⭐ KRITISKT FÖR SEO
-Skickar 10 requests som Googlebot över tid:
-- Detekterar om responses försämras (progressiv blockering)
-- Detekterar soft throttling (svarstider ökar)
-- Identifierar instabil bot-hantering
+#### SEO-verktyg (12 st)
+- Ahrefs
+- Semrush
+- Majestic (MJ12bot)
+- Moz/DotBot
+- Screaming Frog
+- Semrush Site Audit
+- Mojeek
+- LinkedIn
+- Twitter/X
+- Facebook
+- Pinterest
+- Slack
 
-## 🔗 Integration & Användning
+#### AI-botar (11 st)
+- GPTBot (OpenAI)
+- ChatGPT
+- Claude (Anthropic)
+- Google AI (Google-Extended)
+- Perplexity AI
+- Common Crawl (CCBot)
+- ByteDance/TikTok (Bytespider)
+- Apple AI (Applebot-Extended)
+- Meta AI (FacebookBot)
+- Anthropic
+- Omgili
 
-Detta verktyg kan integreras i olika tjänster:
+Varje bot testas individuellt och visas med checkmark/kryss i rapporten.
 
-### För säkerhetsanalys:
-- Automatiserad säkerhetsanalys av målsajter
-- Competitive intelligence rapporter
-- Security audit-tjänster
+---
 
-### För SEO & Digital Marketing:
-- Teknisk SEO-audit som del av SEO-tjänster
-- Crawlability-rapporter för kunder
-- Pre-launch säkerhetstester för nya sajter
-- Periodisk övervakning av bot-access
+### 4. Testresultat per Kategori
 
-## ❓ FAQ - För SEO-byråer
+Testerna är grupperade i 4 kategorier:
 
-### Q: Min kunds rankings sjunker, hur använder jag verktyget?
-**A:** Kör: `python advanced_bot_tester.py https://kundens-sajt.se --json`
+#### Server & Prestanda (4 tester)
+| Test | Beskrivning |
+|------|-------------|
+| Basic Connectivity | Testar om servern svarar på HTTP-förfrågningar |
+| Server Performance | Mäter TTFB, SSL, komprimering, cache-headers |
+| Server Load Handling | Simulerar 10 samtidiga requests |
+| Server Technology | Identifierar server, CDN, säkerhetslösningar |
 
-Titta särskilt på:
-- Test 13 (Googlebot Stress Test) - Blockeras Googlebot?
-- Test 14 (Bot Differential Treatment) - Får Googlebot 403 men user 200?
-- Test 12 (Response Time) - Är Googlebot >50% långsammare?
+#### Bot-åtkomst (4 tester)
+| Test | Beskrivning |
+|------|-------------|
+| SEO Bot Accessibility | Testar Googlebot, Bingbot, Ahrefs, Semrush m.fl. |
+| AI Bot Accessibility | Testar GPTBot, Claude, Perplexity m.fl. |
+| Bot Differential Treatment | Jämför bot vs användare (cloaking-check) |
+| Progressive Blocking | Testar rate limiting efter upprepade requests |
 
-### Q: Vad är "normal" rate limiting för Googlebot?
-**A:** Googlebot bör klara minst 20-30 requests på kort tid. Om blockerad efter <15 requests är det för aggressivt och skadar SEO.
+#### Crawlbarhet (4 tester)
+| Test | Beskrivning |
+|------|-------------|
+| Robots.txt Analysis | Analyserar blockerade resurser |
+| Sitemap Accessibility | Kontrollerar sitemap.xml |
+| Blocked Resources | Testar CSS/JS/bilder för Googlebot |
+| Protocol & WWW Consistency | HTTP/HTTPS och www redirects |
 
-### Q: Vad betyder "bot throttling"?
-**A:** Servern svarar långsammare för botar än användare. >20% långsammare kan påverka crawl budget. >50% är KRITISKT.
+#### Googlebot & Mobile-First (4 tester)
+| Test | Beskrivning |
+|------|-------------|
+| Cloaking Detection | Jämför innehåll bot vs användare |
+| Mobile vs Desktop Googlebot | Mobile-First Indexing check |
+| Googlebot Stress Test | Simulerar intensiv crawling |
+| Response Time Comparison | Jämför svarstider bot vs användare |
 
-### Q: Hur visar jag bevis för webbhotellet?
-**A:** Kör med `--json` flaggan för att få strukturerad rapport. Visa dem:
-- HTTP status codes (user vs bot)
-- Response times (user vs bot)
-- Rate limiting thresholds
+---
 
-### Q: Kan verktyget fixa problemen?
-**A:** Nej, verktyget diagnostiserar bara. Lösningar:
-1. Kontakta webbhotell och be dem justera bot-filter
-2. Whitelist Googlebot IP-ranges
-3. Byt till SEO-vänligt webbhotell
-4. Använd Cloudflare med rätt inställningar
+## PDF-rapportens struktur
 
-### Q: Hur ofta ska jag köra testerna?
+```
+┌─────────────────────────────────────────────────────────────┐
+│  SEO CRAWLBARHET RAPPORT                                    │
+│  Poäng: 85/100 - Utmärkt                                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  SERVER PRESTANDA                                           │
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐    │
+│  │  140ms │ │  86d   │ │ Brotli │ │ Aktivt │ │ HTTP/2 │    │
+│  │  TTFB  │ │  SSL   │ │ Kompr. │ │ Cache  │ │Protocol│    │
+│  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘    │
+│                                                             │
+│  SERVER DIAGNOSTIK - FAS FÖR FAS                            │
+│  DNS → TCP → SSL → TTFB → Download                          │
+│  8ms   15ms  45ms  140ms   50ms   = 258ms total             │
+│                                                             │
+│  TESTRESULTAT PER KATEGORI                                  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ ⚡ Server & Prestanda                           4/4   │  │
+│  │ ✓ Basic Connectivity                                 │  │
+│  │   Testar om servern svarar på HTTP-förfrågningar     │  │
+│  │   Resultat: Server OK (200)                          │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│  BOT ACCESSIBILITY - DETALJERAD STATUS                      │
+│  Sökmotorbotar: ✓ Googlebot ✓ Bingbot ✓ Yahoo              │
+│  SEO-verktyg:   ✓ Ahrefs ✓ Semrush ✗ Majestic              │
+│  AI-botar:      ✗ GPTBot ✗ Claude ✓ Perplexity             │
+│                                                             │
+│  IDENTIFIERADE SEO-PROBLEM                                  │
+│  • Sitemap saknas                                           │
+│  • Majestic-bot blockerad                                   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Vanliga problem som identifieras
+
+| Problem | Trolig orsak | Lösning |
+|---------|--------------|---------|
+| Långsam TTFB (>2s) | Långsam backend/databas | Optimera databas, använd caching |
+| SSL snart utgånget | Certifikat behöver förnyas | Förnya SSL-certifikatet |
+| Ingen komprimering | Server-konfiguration | Aktivera gzip/brotli |
+| Botar blockerade | WAF/Firewall | Vitlista sökmotorbotar |
+| Sitemap saknas | Inte skapad | Skapa och submita sitemap.xml |
+| Cloaking detekterad | Olika innehåll för botar | Visa samma innehåll för alla |
+| Långsam DNS | Dålig DNS-provider | Byt till Cloudflare DNS (1.1.1.1) |
+| Långsam TCP | Server långt bort | Använd CDN |
+| Progressiv blockering | Aggressiv rate limiting | Justera WAF-inställningar |
+
+---
+
+## Filer
+
+```
+Domain_Bot_Block_Tester/
+├── advanced_bot_tester.py    # Huvudverktyg (SEO-fokus)
+├── security_bot_tester.py    # Säkerhetstester (separat)
+├── pdf_report_generator.py   # PDF/HTML-rapportgenerator
+├── reports/                  # Genererade rapporter
+├── requirements.txt          # Python-beroenden
+└── README.md                 # Denna fil
+```
+
+---
+
+## Exempel på terminal-output
+
+```
+======================================================================
+  SEO CRAWLABILITY TESTER v1.0
+======================================================================
+Target: https://example.com
+Tid: 2025-01-14 12:00:00
+======================================================================
+
+🔬 Kör detaljerad server-diagnostik...
+   ✅ DNS Lookup: 8ms
+   ✅ TCP Connect: 15ms
+   ✅ SSL Handshake: 45ms
+   ✅ Time to First Byte: 140ms
+   ✅ Content Download: 50ms
+
+🔍 Test 1: SEO Bot Accessibility...
+   ✅ Alla 26 botar kan nå sidan
+
+🤖 Test 2: Robots.txt Analysis...
+   ✅ robots.txt finns och är korrekt konfigurerad
+
+⚡ Test 13: Server Performance Analysis...
+   ✅ TTFB 140ms, Komprimering: brotli, SSL OK (86d kvar)
+
+======================================================================
+  SEO CRAWLBARHET POÄNG: 85/100
+  BEDÖMNING: Utmärkt
+  ✅ Godkända tester: 14
+  ❌ Misslyckade tester: 2
+======================================================================
+
+📄 PDF-rapport genererad: reports/seo_report_example_com_20250114.pdf
+```
+
+---
+
+## FAQ
+
+### Q: Hur tolkar jag TTFB?
+**A:** TTFB (Time To First Byte) är tiden det tar för servern att börja svara. Google rekommenderar <200ms. Över 2 sekunder är kritiskt.
+
+### Q: Varför är AI-botar blockerade?
+**A:** Många sajter blockerar AI-botar för att skydda sitt innehåll från AI-träning. Detta påverkar INTE SEO. Det är ett affärsbeslut.
+
+### Q: Vad är "cloaking"?
+**A:** Cloaking är när servern visar olika innehåll för botar vs användare. Detta är mot Googles riktlinjer och kan leda till penalty.
+
+### Q: Hur ofta ska jag köra testet?
 **A:**
-- Efter webbhotell-migration: Direkt
+- Efter hosting-migration: Direkt
 - Vid SEO-problem: Omedelbart
 - Regelbunden kontroll: 1 gång/månad
-- Efter hosting-uppdateringar: Inom 24h
 
-### Q: Blockerar verktyget min sajt när det testar?
-**A:** Verktyget är "snällt" och väntar mellan requests. Det simulerar normalt bot-beteende. Används för att hitta PROBLEM, inte skapa dem.
+### Q: Blockerar verktyget min sajt?
+**A:** Nej, verktyget är "snällt" med delays mellan requests. Det simulerar normalt bot-beteende.
+
+---
+
+## Säkerhetstester (separat fil)
+
+För säkerhetstester (WAF-detektion, rate limiting, fingerprinting), använd:
+
+```bash
+python security_bot_tester.py https://example.com
+```
+
+---
 
 ## Licens
 
-Detta verktyg är skapat för säkerhetstestning, SEO-analys och utbildning. Använd ansvarsfullt.
+MIT License
 
 ## Författare
 
@@ -474,4 +303,4 @@ Hugo - Cybersajt.se
 
 ---
 
-**Version 4.0** - Nu med server bot-behandling tester specifikt för SEO-byråer! 🚀
+**Version 5.0** - Med detaljerad server-diagnostik, PDF-rapporter och 26 bot-tester!

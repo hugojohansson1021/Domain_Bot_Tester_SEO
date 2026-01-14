@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Crawlbarhet Rapport - example.com</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm 1.5cm;
+            @top-center {
+                content: "SEO Crawlbarhet Rapport";
+                font-size: 10px;
+                color: #666;
+            }
+            @bottom-center {
+                content: "Sida " counter(page) " av " counter(pages);
+                font-size: 10px;
+                color: #666;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #333;
+            background: #fff;
+        }
+
+        .header {
+            background: #0C281D;
+            color: #F5F2D4;
+            padding: 30px;
+            margin: -2cm -1.5cm 20px -1.5cm;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .meta-info {
+            display: flex;
+            justify-content: space-between;
+            background: #0C281D;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .meta-item {
+            text-align: center;
+        }
+
+        .meta-label {
+            font-size: 10px;
+            color: #F5F2D4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .meta-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #F5F2D4;
+            margin-top: 2px;
+        }
+
+        .score-section {
+            text-align: center;
+            padding: 25px;
+            margin-bottom: 25px;
+            background: #fef9c3;
+            border-radius: 12px;
+            border: 2px solid #eab308;
+        }
+
+        .score-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #eab308;
+        }
+
+        .score-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+
+        .score-rating {
+            font-size: 18px;
+            font-weight: 600;
+            color: #eab308;
+            margin-top: 10px;
+        }
+
+        .summary-boxes {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .summary-box {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .summary-box.passed {
+            background: #dcfce7;
+            border: 1px solid #22c55e;
+        }
+
+        .summary-box.failed {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+        }
+
+        .summary-box .number {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .summary-box.passed .number {
+            color: #22c55e;
+        }
+
+        .summary-box.failed .number {
+            color: #ef4444;
+        }
+
+        .summary-box .label {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0C281D;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #0C281D;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+
+        th {
+            background: #0C281D;
+            color: white;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        tr.passed td {
+            background: #f0fdf4;
+        }
+
+        tr.failed td {
+            background: #fef2f2;
+        }
+
+        tr.critical td {
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+        }
+
+        tr.warning td {
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .status-cell {
+            width: 80px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-icon {
+            font-size: 12px;
+        }
+
+        tr.passed .status-cell {
+            color: #22c55e;
+        }
+
+        tr.failed .status-cell, tr.critical .status-cell {
+            color: #ef4444;
+        }
+
+        tr.warning .status-cell {
+            color: #f59e0b;
+        }
+
+        .test-name {
+            width: 180px;
+            font-weight: 500;
+        }
+
+        .test-details {
+            color: #64748b;
+        }
+
+        .issues-list, .recommendations-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .issues-list li, .recommendations-list li {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: #fff7ed;
+            border-left: 3px solid #f97316;
+            border-radius: 0 6px 6px 0;
+            font-size: 11px;
+        }
+
+        .issues-list li.no-issues, .recommendations-list li.no-issues {
+            background: #f0fdf4;
+            border-left-color: #22c55e;
+            color: #166534;
+        }
+
+        .recommendations-list li {
+            background: #eff6ff;
+            border-left-color: #3b82f6;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        /* Bot Accessibility Grid */
+        .bot-accessibility-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .bot-category-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            margin: 10px 0 8px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .bot-category-title:first-child {
+            margin-top: 0;
+        }
+
+        .bot-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .bot-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 10px;
+            min-width: 120px;
+        }
+
+        .bot-item.bot-passed {
+            background: #f0fdf4;
+            border: 1px solid #22c55e;
+        }
+
+        .bot-item.bot-blocked {
+            background: #fef2f2;
+            border: 1px solid #ef4444;
+        }
+
+        .bot-icon {
+            font-size: 12px;
+            margin-right: 6px;
+            font-weight: bold;
+        }
+
+        .bot-passed .bot-icon {
+            color: #22c55e;
+        }
+
+        .bot-blocked .bot-icon {
+            color: #ef4444;
+        }
+
+        .bot-name {
+            flex: 1;
+            font-weight: 500;
+            color: #334155;
+        }
+
+        .bot-status {
+            font-size: 9px;
+            color: #64748b;
+            margin-left: 8px;
+        }
+
+        /* Performance Boxes */
+        .perf-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .perf-box {
+            flex: 1;
+            min-width: 100px;
+            max-width: 140px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid;
+            text-align: center;
+        }
+
+        .perf-box-wide {
+            min-width: 200px;
+            max-width: 300px;
+        }
+
+        .perf-icon {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .perf-value {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .perf-label {
+            font-size: 9px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Category Sections */
+        .category-section {
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .category-header {
+            background: #0C281D;
+            color: #F5F2D4;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .category-icon {
+            font-size: 16px;
+        }
+
+        .category-title {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .category-score {
+            font-size: 12px;
+            background: rgba(255,255,255,0.2);
+            padding: 3px 10px;
+            border-radius: 12px;
+        }
+
+        .category-tests {
+            padding: 10px;
+        }
+
+        .category-test-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            gap: 8px;
+        }
+
+        .category-test-item.test-passed {
+            background: #f0fdf4;
+            border-left: 3px solid #22c55e;
+        }
+
+        .category-test-item.test-failed {
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+        }
+
+        .category-test-item.test-warning {
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .test-status-icon {
+            font-size: 12px;
+            font-weight: bold;
+            min-width: 16px;
+        }
+
+        .test-passed .test-status-icon {
+            color: #22c55e;
+        }
+
+        .test-failed .test-status-icon {
+            color: #ef4444;
+        }
+
+        .test-warning .test-status-icon {
+            color: #f59e0b;
+        }
+
+        .category-test-item .test-name {
+            font-weight: 600;
+            color: #334155;
+            min-width: 180px;
+        }
+
+        .test-detail {
+            color: #64748b;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SEO Crawlbarhet Rapport</h1>
+        <div class="subtitle">Analys av sökmotoroptimering och crawlbarhet</div>
+    </div>
+
+    <div class="meta-info">
+        <div class="meta-item">
+            <div class="meta-label">Webbplats</div>
+            <div class="meta-value">example.com</div>
+        </div>
+        <div class="meta-item">
+            <div class="meta-label">Analyserad URL</div>
+            <div class="meta-value">https://example.com</div>
+        </div>
+        <div class="meta-item">
+            <div class="meta-label">Datum</div>
+            <div class="meta-value">2026-01-14 23:19</div>
+        </div>
+    </div>
+
+    <div class="score-section">
+        <div class="score-value">79/100</div>
+        <div class="score-label">SEO Crawlbarhet Poäng</div>
+        <div class="score-rating">Bra</div>
+    </div>
+
+    <div class="summary-boxes">
+        <div class="summary-box passed">
+            <div class="number">14</div>
+            <div class="label">Godkända tester</div>
+        </div>
+        <div class="summary-box failed">
+            <div class="number">2</div>
+            <div class="label">Problem identifierade</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Server Prestanda</h2>
+        <div class="perf-grid">
+                <div class="perf-box" style="border-color: #22c55e; background: #f0fdf4;">
+                    <div class="perf-icon" style="color: #22c55e;">&#10004;</div>
+                    <div class="perf-value" style="color: #22c55e;">0ms</div>
+                    <div class="perf-label">TTFB</div>
+                </div>
+                
+                <div class="perf-box" style="border-color: #f97316; background: #ffedd5;">
+                    <div class="perf-icon" style="color: #f97316;">&#9888;</div>
+                    <div class="perf-value" style="color: #f97316;">60d</div>
+                    <div class="perf-label">SSL</div>
+                </div>
+                
+                <div class="perf-box" style="border-color: #22c55e; background: #f0fdf4;">
+                    <div class="perf-icon" style="color: #22c55e;">&#10004;</div>
+                    <div class="perf-value" style="color: #22c55e;">Gzip</div>
+                    <div class="perf-label">Komprimering</div>
+                </div>
+                
+                <div class="perf-box" style="border-color: #f97316; background: #ffedd5;">
+                    <div class="perf-icon" style="color: #f97316;">&#9888;</div>
+                    <div class="perf-value" style="color: #f97316;">Saknas</div>
+                    <div class="perf-label">Cache</div>
+                </div>
+                
+                <div class="perf-box" style="border-color: #eab308; background: #fef9c3;">
+                    <div class="perf-icon" style="color: #eab308;">&#10004;</div>
+                    <div class="perf-value" style="color: #eab308;">HTTP/1.1</div>
+                    <div class="perf-label">Protokoll</div>
+                </div>
+                
+                <div class="perf-box perf-box-wide" style="border-color: #3b82f6; background: #eff6ff;">
+                    <div class="perf-label">Server</div>
+                    <div class="perf-value" style="color: #3b82f6;">cloudflare</div>
+                </div>
+            </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Testresultat per Kategori</h2>
+        
+        <div class="category-section">
+            <div class="category-header">
+                <span class="category-icon">&#9889;</span>
+                <span class="category-title">Server & Prestanda</span>
+                <span class="category-score">4/4</span>
+            </div>
+            <div class="category-tests">
+        
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Basic Connectivity</span>
+                    <span class="test-detail">Server svarar (HTTP 200, 0.04s)</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Server Performance</span>
+                    <span class="test-detail">TTFB 0.04s. Komprimering: gzip, SSL OK (60d kvar), TTFB 0.044s (snabb). Tips: In...</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Server Load Handling</span>
+                    <span class="test-detail">Server stabil under belastning: 10/10 lyckades, 0.04s avg (+2% vs baseline). Kla...</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Server Technology</span>
+                    <span class="test-detail">Server: cloudflare | Teknologier: Cloudflare</span>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="category-section">
+            <div class="category-header">
+                <span class="category-icon">&#129302;</span>
+                <span class="category-title">Bot-åtkomst</span>
+                <span class="category-score">4/4</span>
+            </div>
+            <div class="category-tests">
+        
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">SEO Bot Accessibility</span>
+                    <span class="test-detail">Alla SEO-botar (26) kan nå sidan: Googlebot, Bingbot, Yahoo Slurp, Ahrefs, Semru...</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">AI Bot Accessibility</span>
+                    <span class="test-detail">Alla AI-botar (6) kan nå sidan (GPTBot, Claude, etc.)</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Bot Differential Treatment</span>
+                    <span class="test-detail">Botar och användare behandlas lika (Google: 200, Bing: 200, User: 200)</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Progressive Blocking</span>
+                    <span class="test-detail">Ingen progressiv blockering: 10/10 requests OK</span>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="category-section">
+            <div class="category-header">
+                <span class="category-icon">&#128269;</span>
+                <span class="category-title">Crawlbarhet</span>
+                <span class="category-score">2/4</span>
+            </div>
+            <div class="category-tests">
+        
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Robots.txt Analysis</span>
+                    <span class="test-detail">Ingen robots.txt (tillåter alla botar som standard)</span>
+                </div>
+            
+                <div class="category-test-item test-warning">
+                    <span class="test-status-icon">&#9888;</span>
+                    <span class="test-name">Sitemap Accessibility</span>
+                    <span class="test-detail">Ingen sitemap.xml hittades - rekommenderas starkt för SEO</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Blocked Resources</span>
+                    <span class="test-detail">Inga externa CSS/JS-resurser hittades att testa (inline styles/scripts)</span>
+                </div>
+            
+                <div class="category-test-item test-failed">
+                    <span class="test-status-icon">&#10006;</span>
+                    <span class="test-name">Protocol & WWW Consistency</span>
+                    <span class="test-detail">URL-konsistensproblem: http://example.com svarar 200 (borde redirecta till HTTPS...</span>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="category-section">
+            <div class="category-header">
+                <span class="category-icon">&#128241;</span>
+                <span class="category-title">Googlebot & Mobile-First</span>
+                <span class="category-score">4/4</span>
+            </div>
+            <div class="category-tests">
+        
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Cloaking Detection</span>
+                    <span class="test-detail">Ingen cloaking - samma content för users och botar (0.0% skillnad)</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Response Time Comparison</span>
+                    <span class="test-detail">Ingen bot throttling: User 0.04s, Bot 0.04s - BRA för SEO</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Googlebot Stress Test</span>
+                    <span class="test-detail">Googlebot klarar 25 requests utan blockering - BRA för SEO</span>
+                </div>
+            
+                <div class="category-test-item test-passed">
+                    <span class="test-status-icon">&#10004;</span>
+                    <span class="test-name">Mobile vs Desktop Googlebot</span>
+                    <span class="test-detail">Mobile och Desktop Googlebot behandlas lika (båda HTTP 200, ~513 bytes) - BRA fö...</span>
+                </div>
+            
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Bot Accessibility - Detaljerad Status</h2>
+        
+        <div class="bot-accessibility-section">
+            <h3 class="bot-category-title">Sökmotorbotar</h3>
+            <div class="bot-grid">
+        
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Googlebot</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Bingbot</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Yahoo Slurp</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+            </div>
+            <h3 class="bot-category-title">SEO-verktyg</h3>
+            <div class="bot-grid">
+        
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Ahrefs</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Semrush</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Majestic</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Facebook</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Moz/DotBot</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Screaming Frog</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Semrush Site Audit</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Mojeek</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">LinkedIn</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Twitter/X</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Pinterest</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Slack</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+            </div>
+            <h3 class="bot-category-title">AI-botar (GPT, Claude, Perplexity m.fl.)</h3>
+            <div class="bot-grid">
+        
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">GPTBot (OpenAI)</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">ChatGPT</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Claude (Anthropic)</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Google AI</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Common Crawl</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Anthropic</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">ByteDance/TikTok</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Perplexity AI</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Apple AI</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Meta AI</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+                <div class="bot-item bot-passed">
+                    <span class="bot-icon">&#10004;</span>
+                    <span class="bot-name">Omgili</span>
+                    <span class="bot-status">200</span>
+                </div>
+            
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Identifierade SEO-Problem</h2>
+        <ul class="issues-list">
+            <li>Ingen sitemap.xml hittades</li>
+<li>HTTP-version (example.com) redirectar INTE till HTTPS - duplicate content risk</li>
+<li>WWW/non-WWW pekar på olika destinations - duplicate content risk</li>
+
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Rekommendationer</h2>
+        <ul class="recommendations-list">
+            <li class="no-issues">Inga specifika rekommendationer - bra jobbat!</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>Genererad med SEO Crawlability Tester | 2026-01-14 23:19</p>
+        <p>Denna rapport är automatgenererad baserat på tekniska tester av webbplatsens crawlbarhet.</p>
+    </div>
+</body>
+</html>

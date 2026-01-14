@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Advanced Bot Protection Tester
-Testar bot-skydd med mer sofistikerade metoder och bättre felhantering
+SEO Crawlability Tester
+Testar SEO-crawlbarhet - Googlebot, Mobile-First, Resources, Sitemaps, etc.
+För säkerhetstester, använd security_bot_tester.py
 """
 
 import requests
@@ -44,6 +45,9 @@ class BotProtectionReport:
     seo_issues: List[str]
     recommendations: List[str]
     test_results: List[Dict]
+    bot_accessibility_details: List[Dict] = None  # Detaljerad bot-status för PDF
+    server_performance_details: Dict = None  # Detaljerad server-prestanda för PDF
+    server_diagnostics: Dict = None  # Fas-för-fas server diagnostik
 
 class AdvancedBotProtectionTester:
     def __init__(self, target_url: str, timeout: int = 10, verbose: bool = True):
@@ -78,7 +82,14 @@ class AdvancedBotProtectionTester:
                 'Mozilla/5.0 (compatible; SemrushBot/7~bl; +http://www.semrush.com/bot.html)',
                 'Mozilla/5.0 (compatible; MJ12bot/v1.4.8; http://mj12bot.com/)',
                 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-                'Mozilla/5.0 (compatible; DotBot/1.2; +https://opensiteexplorer.org/dotbot)'
+                'Mozilla/5.0 (compatible; DotBot/1.2; +https://opensiteexplorer.org/dotbot)',
+                'Screaming Frog SEO Spider/19.0',
+                'Mozilla/5.0 (compatible; SiteAuditBot/0.97; +http://www.semrush.com/bot.html)',
+                'Mozilla/5.0 (compatible; MojeekBot/0.11; +https://www.mojeek.com/bot.html)',
+                'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
+                'Twitterbot/1.0',
+                'Pinterest/0.2 (+http://www.pinterest.com/)',
+                'Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)'
             ],
             'generic_bots': [
                 'Googlebot/2.1',
@@ -98,6 +109,14 @@ class AdvancedBotProtectionTester:
                 'Applebot-Extended/1.0',  # Apple AI
                 'FacebookBot/1.0',  # Meta AI
                 'Omgilibot/1.0'  # Omgili AI
+            ],
+            'googlebot_mobile': [
+                'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+            ],
+            'googlebot_desktop': [
+                'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/120.0.0.0 Safari/537.36'
             ]
         }
 
@@ -111,6 +130,31 @@ class AdvancedBotProtectionTester:
         # Server performance tracking
         self.server_performance_issues = []
         self.server_info = {}
+
+        # Detaljerad bot-åtkomst tracking (för PDF-rapport)
+        self.bot_accessibility_details = []
+
+        # Detaljerad server performance tracking (för PDF-rapport)
+        self.server_performance_details = {
+            'ttfb': {'value': None, 'status': 'unknown', 'label': 'TTFB'},
+            'ssl': {'value': None, 'status': 'unknown', 'label': 'SSL-certifikat'},
+            'compression': {'value': None, 'status': 'unknown', 'label': 'Komprimering'},
+            'cache': {'value': None, 'status': 'unknown', 'label': 'Cache'},
+            'http_version': {'value': None, 'status': 'unknown', 'label': 'HTTP-version'},
+            'server': {'value': None, 'status': 'info', 'label': 'Server'}
+        }
+
+        # Detaljerad server-diagnostik (fas för fas)
+        self.server_diagnostics = {
+            'dns': {'time': None, 'status': 'unknown', 'label': 'DNS Lookup', 'description': 'Domän → IP-adress'},
+            'tcp': {'time': None, 'status': 'unknown', 'label': 'TCP Connect', 'description': 'Anslutning till server'},
+            'ssl': {'time': None, 'status': 'unknown', 'label': 'SSL Handshake', 'description': 'HTTPS-förhandling'},
+            'ttfb': {'time': None, 'status': 'unknown', 'label': 'Time to First Byte', 'description': 'Servern processar request'},
+            'download': {'time': None, 'status': 'unknown', 'label': 'Content Download', 'description': 'Ladda ner HTML'},
+            'total': {'time': None, 'status': 'unknown', 'label': 'Total', 'description': 'Total laddningstid'},
+            'bottleneck': None,  # Vilken fas som är problemet
+            'bottleneck_cause': None  # Förklaring av problemet
+        }
     
     def _normalize_url(self, url: str) -> str:
         """Normaliserar URL"""
@@ -122,15 +166,241 @@ class AdvancedBotProtectionTester:
         """Loggar meddelande om verbose är aktivt"""
         if self.verbose:
             print(f"{emoji} {message}" if emoji else message)
-    
+
+    def _measure_server_diagnostics(self) -> dict:
+        """Mäter detaljerad server-diagnostik fas för fas"""
+        import socket
+        import ssl
+
+        parsed = urlparse(self.target_url)
+        hostname = parsed.netloc
+        port = 443 if parsed.scheme == 'https' else 80
+        path = parsed.path if parsed.path else '/'
+
+        diagnostics = {
+            'dns': {'time': None, 'status': 'unknown'},
+            'tcp': {'time': None, 'status': 'unknown'},
+            'ssl': {'time': None, 'status': 'unknown'},
+            'ttfb': {'time': None, 'status': 'unknown'},
+            'download': {'time': None, 'status': 'unknown'},
+            'total': {'time': None, 'status': 'unknown'},
+            'bottleneck': None,
+            'bottleneck_cause': None,
+            'error': None
+        }
+
+        total_start = time.time()
+
+        try:
+            # 1. DNS Lookup
+            dns_start = time.time()
+            try:
+                ip_addresses = socket.getaddrinfo(hostname, port, socket.AF_INET, socket.SOCK_STREAM)
+                ip_address = ip_addresses[0][4][0]
+                dns_time = time.time() - dns_start
+                diagnostics['dns']['time'] = dns_time
+                diagnostics['dns']['status'] = 'good' if dns_time < 0.1 else ('ok' if dns_time < 0.5 else 'warning')
+            except socket.gaierror as e:
+                diagnostics['dns']['time'] = time.time() - dns_start
+                diagnostics['dns']['status'] = 'critical'
+                diagnostics['error'] = f"DNS-fel: {str(e)}"
+                diagnostics['bottleneck'] = 'dns'
+                diagnostics['bottleneck_cause'] = 'DNS-uppslagning misslyckades. Kontrollera domännamnet.'
+                return diagnostics
+
+            # 2. TCP Connect
+            tcp_start = time.time()
+            try:
+                sock = socket.create_connection((ip_address, port), timeout=self.timeout)
+                tcp_time = time.time() - tcp_start
+                diagnostics['tcp']['time'] = tcp_time
+                diagnostics['tcp']['status'] = 'good' if tcp_time < 0.2 else ('ok' if tcp_time < 0.5 else 'warning')
+            except socket.timeout:
+                diagnostics['tcp']['time'] = self.timeout
+                diagnostics['tcp']['status'] = 'critical'
+                diagnostics['error'] = "TCP timeout - servern svarar inte"
+                diagnostics['bottleneck'] = 'tcp'
+                diagnostics['bottleneck_cause'] = 'Servern svarar inte på anslutningsförsök. Kan vara nere eller blockerar din IP.'
+                return diagnostics
+            except Exception as e:
+                diagnostics['tcp']['time'] = time.time() - tcp_start
+                diagnostics['tcp']['status'] = 'critical'
+                diagnostics['error'] = f"TCP-fel: {str(e)}"
+                diagnostics['bottleneck'] = 'tcp'
+                diagnostics['bottleneck_cause'] = 'Kunde inte ansluta till servern.'
+                return diagnostics
+
+            # 3. SSL Handshake (endast för HTTPS)
+            if parsed.scheme == 'https':
+                ssl_start = time.time()
+                try:
+                    context = ssl.create_default_context()
+                    ssl_sock = context.wrap_socket(sock, server_hostname=hostname)
+                    ssl_time = time.time() - ssl_start
+                    diagnostics['ssl']['time'] = ssl_time
+                    diagnostics['ssl']['status'] = 'good' if ssl_time < 0.3 else ('ok' if ssl_time < 1.0 else 'warning')
+                    sock = ssl_sock
+                except ssl.SSLError as e:
+                    diagnostics['ssl']['time'] = time.time() - ssl_start
+                    diagnostics['ssl']['status'] = 'critical'
+                    diagnostics['error'] = f"SSL-fel: {str(e)[:50]}"
+                    diagnostics['bottleneck'] = 'ssl'
+                    diagnostics['bottleneck_cause'] = 'SSL-certifikat problem. Certifikatet kan vara ogiltigt eller utgånget.'
+                    sock.close()
+                    return diagnostics
+            else:
+                diagnostics['ssl']['time'] = 0
+                diagnostics['ssl']['status'] = 'skip'
+
+            # 4. HTTP Request + TTFB
+            ttfb_start = time.time()
+            try:
+                request = f"GET {path} HTTP/1.1\r\nHost: {hostname}\r\nUser-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)\r\nAccept: */*\r\nConnection: close\r\n\r\n"
+                sock.sendall(request.encode())
+
+                # Vänta på första byte med select
+                import select
+                sock.setblocking(False)
+
+                ready = select.select([sock], [], [], self.timeout)
+                ttfb_time = time.time() - ttfb_start
+
+                if not ready[0]:
+                    # Timeout - ingen data mottagen
+                    diagnostics['ttfb']['time'] = ttfb_time
+                    diagnostics['ttfb']['status'] = 'critical'
+                    diagnostics['error'] = "TTFB timeout - servern svarar inte"
+                    diagnostics['bottleneck'] = 'ttfb'
+                    diagnostics['bottleneck_cause'] = 'Servern tar för lång tid att svara. Trolig orsak: långsam backend, databas eller PHP.'
+                    sock.close()
+                    return diagnostics
+
+                diagnostics['ttfb']['time'] = ttfb_time
+                if ttfb_time < 0.2:
+                    diagnostics['ttfb']['status'] = 'good'
+                elif ttfb_time < 0.6:
+                    diagnostics['ttfb']['status'] = 'ok'
+                elif ttfb_time < 2.0:
+                    diagnostics['ttfb']['status'] = 'warning'
+                else:
+                    diagnostics['ttfb']['status'] = 'critical'
+                    diagnostics['bottleneck'] = 'ttfb'
+                    diagnostics['bottleneck_cause'] = f'TTFB är {ttfb_time:.1f}s - Serverns backend/databas är långsam.'
+
+            except Exception as e:
+                diagnostics['ttfb']['time'] = time.time() - ttfb_start
+                diagnostics['ttfb']['status'] = 'critical'
+                diagnostics['error'] = f"TTFB-fel: {str(e)[:50]}"
+                diagnostics['bottleneck'] = 'ttfb'
+                diagnostics['bottleneck_cause'] = 'Kunde inte få svar från servern.'
+                sock.close()
+                return diagnostics
+
+            # 5. Content Download
+            download_start = time.time()
+            try:
+                sock.setblocking(True)
+                sock.settimeout(self.timeout)
+                content = b""
+                while True:
+                    try:
+                        chunk = sock.recv(8192)
+                        if not chunk:
+                            break
+                        content += chunk
+                        if len(content) > 500000:  # Max 500KB
+                            break
+                    except socket.timeout:
+                        break
+
+                download_time = time.time() - download_start
+                diagnostics['download']['time'] = download_time
+                diagnostics['download']['status'] = 'good' if download_time < 1.0 else ('ok' if download_time < 3.0 else 'warning')
+                diagnostics['content_size'] = len(content)
+
+            except Exception as e:
+                diagnostics['download']['time'] = time.time() - download_start
+                diagnostics['download']['status'] = 'warning'
+
+            sock.close()
+
+        except Exception as e:
+            diagnostics['error'] = f"Oväntat fel: {str(e)[:100]}"
+
+        # Total tid
+        total_time = time.time() - total_start
+        diagnostics['total']['time'] = total_time
+        if total_time < 1.0:
+            diagnostics['total']['status'] = 'good'
+        elif total_time < 3.0:
+            diagnostics['total']['status'] = 'ok'
+        elif total_time < 5.0:
+            diagnostics['total']['status'] = 'warning'
+        else:
+            diagnostics['total']['status'] = 'critical'
+
+        # Hitta flaskhals om ingen redan är satt
+        if not diagnostics['bottleneck']:
+            phases = ['dns', 'tcp', 'ssl', 'ttfb', 'download']
+            thresholds = {
+                'dns': (0.5, 'Långsam DNS - överväg att byta DNS-provider (ex: Cloudflare 1.1.1.1)'),
+                'tcp': (0.5, 'Långsam anslutning - servern är geografiskt långt bort eller överbelastad'),
+                'ssl': (1.0, 'Långsam SSL - servern har gammal/långsam SSL-konfiguration'),
+                'ttfb': (2.0, 'Långsam TTFB - serverns backend/databas/PHP är långsam'),
+                'download': (3.0, 'Långsam nedladdning - stor sida eller ingen komprimering')
+            }
+
+            for phase in phases:
+                t = diagnostics[phase].get('time')
+                if t and phase in thresholds:
+                    threshold, cause = thresholds[phase]
+                    if t > threshold:
+                        diagnostics['bottleneck'] = phase
+                        diagnostics['bottleneck_cause'] = cause
+                        break
+
+        return diagnostics
+
+    def _update_server_diagnostics(self, diag: dict):
+        """Uppdaterar self.server_diagnostics från mätresultat"""
+        phases = ['dns', 'tcp', 'ssl', 'ttfb', 'download', 'total']
+
+        for phase in phases:
+            if phase in diag and diag[phase].get('time') is not None:
+                self.server_diagnostics[phase]['time'] = diag[phase]['time']
+                self.server_diagnostics[phase]['status'] = diag[phase]['status']
+
+        self.server_diagnostics['bottleneck'] = diag.get('bottleneck')
+        self.server_diagnostics['bottleneck_cause'] = diag.get('bottleneck_cause')
+
+        if diag.get('error'):
+            self.server_diagnostics['error'] = diag['error']
+
+        if diag.get('content_size'):
+            self.server_diagnostics['content_size'] = diag['content_size']
+
+        # Logga diagnostik
+        self._log("   Server-diagnostik:", "")
+        for phase in ['dns', 'tcp', 'ssl', 'ttfb', 'download']:
+            t = self.server_diagnostics[phase].get('time')
+            status = self.server_diagnostics[phase].get('status', 'unknown')
+            label = self.server_diagnostics[phase].get('label', phase)
+            if t is not None:
+                emoji = '✅' if status in ['good', 'ok'] else ('⚠️' if status == 'warning' else '❌')
+                self._log(f"   {emoji} {label}: {t*1000:.0f}ms", "")
+
+        if self.server_diagnostics['bottleneck']:
+            self._log(f"   ⚠️ Flaskhals: {self.server_diagnostics['bottleneck_cause']}", "")
+
     def print_header(self):
         """Skriver ut header"""
         print("\n" + "="*70)
-        print("🛡️  BOT PROTECTION & SEO CRAWLABILITY TESTER v4.0")
+        print("🔍  SEO CRAWLABILITY TESTER v1.0")
         print("="*70)
         print(f"Target: {self.target_url}")
         print(f"Tid: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Testar: Säkerhet + SEO + Server Bot-behandling + AI Botar")
+        print(f"Testar: Googlebot, Mobile-First, Resources, Sitemaps, Cloaking")
+        print(f"Antal tester: 15")
         print("="*70 + "\n")
     
     def test_basic_connectivity(self) -> TestResult:
@@ -272,446 +542,62 @@ class AdvancedBotProtectionTester:
             severity=severity
         )
     
-    def test_aggressive_rate_limiting(self) -> TestResult:
-        """Test 1: Aggressiv Rate Limiting"""
-        self._log("Test 1: Aggressive Rate Limiting...", "📊")
-        
-        session = requests.Session()
-        blocked = False
-        requests_sent = 0
-        max_requests = 50
-        block_threshold = None
-        
-        try:
-            for i in range(max_requests):
-                try:
-                    response = session.get(
-                        self.target_url,
-                        timeout=self.timeout,
-                        verify=False,
-                        headers={'User-Agent': self.user_agents['legitimate'][0]}
-                    )
-                    requests_sent += 1
-                    
-                    # Kolla efter olika typer av blockering
-                    if response.status_code in [429, 403, 503]:
-                        blocked = True
-                        block_threshold = requests_sent
-                        self.protection_layers.add("Rate Limiting")
-                        
-                        # Identifiera typ av rate limiting
-                        if 'cloudflare' in response.text.lower():
-                            protection_type = "Cloudflare Rate Limiting"
-                        elif 'nginx' in response.headers.get('Server', '').lower():
-                            protection_type = "Nginx Rate Limiting"
-                        else:
-                            protection_type = "Generic Rate Limiting"
-                        
-                        return TestResult(
-                            test_name="Aggressive Rate Limiting",
-                            passed=True,
-                            details=f"✅ Rate limiting aktivt efter {requests_sent} requests (HTTP {response.status_code})",
-                            response_code=response.status_code,
-                            protection_type=protection_type,
-                            severity="LOW"
-                        )
-                    
-                    time.sleep(0.05)  # Mycket kort delay
-                    
-                except requests.exceptions.Timeout:
-                    self._log("  Request timeout (möjligt rate limiting)", "⏱️")
-                    continue
-                except Exception as e:
-                    continue
-            
-            self.vulnerabilities.append("Ingen rate limiting detekterad")
-            return TestResult(
-                test_name="Aggressive Rate Limiting",
-                passed=False,
-                details=f"❌ Ingen rate limiting efter {requests_sent} requests",
-                response_code=200,
-                severity="HIGH"
-            )
-            
-        except Exception as e:
-            return TestResult(
-                test_name="Aggressive Rate Limiting",
-                passed=False,
-                details=f"⚠️ Fel vid test: {str(e)[:100]}",
-                severity="MEDIUM"
-            )
-    
-    def test_comprehensive_user_agent_filtering(self) -> TestResult:
-        """Test 2: Omfattande User-Agent filtrering"""
-        self._log("Test 2: User-Agent Filtering...", "🤖")
-        
-        blocked_count = 0
-        total_tested = 0
-        blocked_agents = []
-        
-        try:
-            # Testa suspekta agents
-            for agent in self.user_agents['suspicious']:
-                total_tested += 1
-                try:
-                    response = requests.get(
-                        self.target_url,
-                        headers={"User-Agent": agent},
-                        timeout=self.timeout,
-                        verify=False
-                    )
-                    
-                    if response.status_code in [403, 406, 429]:
-                        blocked_count += 1
-                        blocked_agents.append(agent)
-                except:
-                    continue
-                
-                time.sleep(0.5)
-            
-            # Testa legitimt vs. suspekt
-            legit_response = None
-            try:
-                legit_response = requests.get(
-                    self.target_url,
-                    headers={"User-Agent": self.user_agents['legitimate'][0]},
-                    timeout=self.timeout,
-                    verify=False
-                )
-            except:
-                pass
-            
-            if blocked_count > 0:
-                self.protection_layers.add("User-Agent Filtering")
-                return TestResult(
-                    test_name="User-Agent Filtering",
-                    passed=True,
-                    details=f"✅ Blockerar {blocked_count}/{total_tested} suspekta user agents",
-                    severity="LOW"
-                )
-            else:
-                self.vulnerabilities.append("Accepterar suspekta user agents")
-                return TestResult(
-                    test_name="User-Agent Filtering",
-                    passed=False,
-                    details=f"❌ Accepterar alla suspekta user agents ({total_tested} testade)",
-                    severity="MEDIUM"
-                )
-                
-        except Exception as e:
-            return TestResult(
-                test_name="User-Agent Filtering",
-                passed=False,
-                details=f"⚠️ Fel vid test: {str(e)[:100]}",
-                severity="LOW"
-            )
-    
-    def test_behavioral_analysis(self) -> TestResult:
-        """Test 3: Beteendeanalys (Header fingerprinting & TLS)"""
-        self._log("Test 3: Behavioral Analysis...", "🔍")
-        
-        try:
-            # Test 1: Minimala headers (bot-like)
-            minimal_headers = {
-                "User-Agent": "Mozilla/5.0"
-            }
-            
-            # Test 2: Kompletta browser headers (human-like)
-            full_headers = {
-                "User-Agent": self.user_agents['legitimate'][0],
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "Accept-Language": "sv-SE,sv;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Accept-Encoding": "gzip, deflate, br",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
-                "Sec-Fetch-User": "?1",
-                "Cache-Control": "max-age=0"
-            }
-            
-            minimal_response = requests.get(
-                self.target_url,
-                headers=minimal_headers,
-                timeout=self.timeout,
-                verify=False
-            )
-            
-            time.sleep(1)
-            
-            full_response = requests.get(
-                self.target_url,
-                headers=full_headers,
-                timeout=self.timeout,
-                verify=False
-            )
-            
-            # Analysera skillnader
-            if minimal_response.status_code != full_response.status_code:
-                self.protection_layers.add("Behavioral Analysis")
-                return TestResult(
-                    test_name="Behavioral Analysis",
-                    passed=True,
-                    details=f"✅ Servern analyserar request headers (minimala: {minimal_response.status_code}, full: {full_response.status_code})",
-                    severity="LOW"
-                )
-            
-            # Kolla response content skillnader
-            if len(minimal_response.content) != len(full_response.content):
-                self.protection_layers.add("Content Fingerprinting")
-                return TestResult(
-                    test_name="Behavioral Analysis",
-                    passed=True,
-                    details=f"✅ Servern varierar content baserat på headers",
-                    severity="LOW"
-                )
-            
-            self.vulnerabilities.append("Ingen beteendeanalys detekterad")
-            return TestResult(
-                test_name="Behavioral Analysis",
-                passed=False,
-                details="❌ Servern analyserar inte request beteende",
-                severity="MEDIUM"
-            )
-                
-        except Exception as e:
-            return TestResult(
-                test_name="Behavioral Analysis",
-                passed=False,
-                details=f"⚠️ Fel vid test: {str(e)[:100]}",
-                severity="LOW"
-            )
-    
-    def test_waf_and_challenge_detection(self) -> TestResult:
-        """Test 4: WAF & Challenge Detection"""
-        self._log("Test 4: WAF & Challenge Detection...", "⚡")
-        
-        try:
-            response = requests.get(
-                self.target_url,
-                timeout=self.timeout,
-                verify=False,
-                headers={'User-Agent': self.user_agents['legitimate'][0]}
-            )
-            
-            content = response.text.lower()
-            headers = {k.lower(): v.lower() for k, v in response.headers.items()}
-            
-            # Detektera olika WAF/CDN providers
-            waf_indicators = {
-                'Cloudflare': ['cloudflare', 'cf-ray', '__cfduid', 'checking your browser'],
-                'Akamai': ['akamai', 'akamaighost'],
-                'Imperva': ['imperva', 'incapsula', 'visid_incap'],
-                'AWS WAF': ['x-amzn-requestid', 'x-amz-cf'],
-                'Sucuri': ['sucuri', 'x-sucuri'],
-                'Wordfence': ['wordfence'],
-                'ModSecurity': ['mod_security', 'modsecurity'],
-                'BIG-IP ASM': ['bigipserver', 'f5'],
-                'Barracuda': ['barracuda', 'barra_counter_session']
-            }
-            
-            detected_wafs = []
-            
-            for waf_name, indicators in waf_indicators.items():
-                for indicator in indicators:
-                    if indicator in content or indicator in str(headers):
-                        detected_wafs.append(waf_name)
-                        self.protection_layers.add(f"WAF: {waf_name}")
-                        break
-            
-            # Kolla efter challenges
-            challenge_indicators = [
-                'just a moment',
-                'checking your browser',
-                'ddos protection',
-                'captcha',
-                'recaptcha',
-                'hcaptcha',
-                'please wait',
-                'verifying you are human'
-            ]
-            
-            has_challenge = any(ind in content for ind in challenge_indicators)
-            
-            if detected_wafs or has_challenge:
-                details = []
-                if detected_wafs:
-                    details.append(f"WAF: {', '.join(detected_wafs)}")
-                if has_challenge:
-                    details.append("JavaScript Challenge aktiv")
-                    self.protection_layers.add("JavaScript Challenge")
-                
-                return TestResult(
-                    test_name="WAF & Challenge Detection",
-                    passed=True,
-                    details=f"✅ {' | '.join(details)}",
-                    protection_type=detected_wafs[0] if detected_wafs else "Generic",
-                    severity="LOW"
-                )
-            else:
-                self.vulnerabilities.append("Ingen WAF eller challenge detekterad")
-                return TestResult(
-                    test_name="WAF & Challenge Detection",
-                    passed=False,
-                    details="❌ Ingen WAF eller JS challenge detekterad",
-                    severity="HIGH"
-                )
-                
-        except Exception as e:
-            return TestResult(
-                test_name="WAF & Challenge Detection",
-                passed=False,
-                details=f"⚠️ Fel vid test: {str(e)[:100]}",
-                severity="MEDIUM"
-            )
-    
-    def test_advanced_fingerprinting(self) -> TestResult:
-        """Test 5: Avancerad Fingerprinting (TLS, Headers, Timing)"""
-        self._log("Test 5: Advanced Fingerprinting...", "🔬")
-        
-        try:
-            # Test med olika header kombinationer
-            test_scenarios = [
-                {
-                    'name': 'Proxy Headers',
-                    'headers': {
-                        'X-Forwarded-For': '192.168.1.1',
-                        'X-Real-IP': '192.168.1.1',
-                        'Via': '1.1 proxy.example.com'
-                    }
-                },
-                {
-                    'name': 'Tor Exit Node',
-                    'headers': {
-                        'X-Forwarded-For': '185.220.101.1'  # Known Tor exit
-                    }
-                },
-                {
-                    'name': 'Missing Accept Headers',
-                    'headers': {
-                        'User-Agent': self.user_agents['legitimate'][0]
-                        # Saknar Accept, Accept-Language etc
-                    }
-                }
-            ]
-            
-            blocked_scenarios = []
-            
-            for scenario in test_scenarios:
-                try:
-                    response = requests.get(
-                        self.target_url,
-                        headers=scenario['headers'],
-                        timeout=self.timeout,
-                        verify=False
-                    )
-                    
-                    if response.status_code in [403, 406, 503]:
-                        blocked_scenarios.append(scenario['name'])
-                        
-                except:
-                    continue
-                
-                time.sleep(0.5)
-            
-            if blocked_scenarios:
-                self.protection_layers.add("Advanced Fingerprinting")
-                return TestResult(
-                    test_name="Advanced Fingerprinting",
-                    passed=True,
-                    details=f"✅ Blockerar: {', '.join(blocked_scenarios)}",
-                    severity="LOW"
-                )
-            else:
-                self.vulnerabilities.append("Ingen avancerad fingerprinting")
-                return TestResult(
-                    test_name="Advanced Fingerprinting",
-                    passed=False,
-                    details="❌ Accepterar proxy/anonymiserings-headers",
-                    severity="MEDIUM"
-                )
-                
-        except Exception as e:
-            return TestResult(
-                test_name="Advanced Fingerprinting",
-                passed=False,
-                details=f"⚠️ Fel vid test: {str(e)[:100]}",
-                severity="LOW"
-            )
-    
-    def test_api_endpoint_protection(self) -> TestResult:
-        """Test 6: API Endpoint Protection"""
-        self._log("Test 6: API Endpoint Protection...", "🔧")
-        
-        try:
-            parsed = urlparse(self.target_url)
-            base_url = f"{parsed.scheme}://{parsed.netloc}"
-            
-            # Vanliga API endpoints att testa
-            api_paths = [
-                '/api/',
-                '/api/v1/',
-                '/wp-json/',
-                '/rest/',
-                '/.env',
-                '/admin/',
-                '/api/users',
-                '/graphql'
-            ]
-            
-            protected_endpoints = 0
-            accessible_endpoints = []
-            
-            for path in api_paths:
-                try:
-                    url = base_url + path
-                    response = requests.get(
-                        url,
-                        timeout=self.timeout,
-                        verify=False,
-                        headers={'User-Agent': self.user_agents['suspicious'][0]}
-                    )
-                    
-                    if response.status_code in [401, 403, 404]:
-                        protected_endpoints += 1
-                    elif response.status_code == 200:
-                        accessible_endpoints.append(path)
-                        
-                except:
-                    protected_endpoints += 1  # Timeout/error = skyddad
-                
-                time.sleep(0.3)
-            
-            if len(accessible_endpoints) == 0:
-                self.protection_layers.add("API Protection")
-                return TestResult(
-                    test_name="API Endpoint Protection",
-                    passed=True,
-                    details=f"✅ Alla testade endpoints är skyddade ({protected_endpoints}/{len(api_paths)})",
-                    severity="LOW"
-                )
-            else:
-                self.vulnerabilities.append(f"Öppna API endpoints: {', '.join(accessible_endpoints)}")
-                return TestResult(
-                    test_name="API Endpoint Protection",
-                    passed=False,
-                    details=f"⚠️ {len(accessible_endpoints)} öppna endpoints: {', '.join(accessible_endpoints[:3])}",
-                    severity="MEDIUM"
-                )
-                
-        except Exception as e:
-            return TestResult(
-                test_name="API Endpoint Protection",
-                passed=False,
-                details=f"⚠️ Fel vid test: {str(e)[:100]}",
-                severity="LOW"
-            )
+    def _extract_bot_name(self, user_agent: str) -> str:
+        """Extraherar läsbart bot-namn från User-Agent sträng"""
+        # Känd mapping av User-Agents till läsbara namn
+        bot_mapping = {
+            # Sökmotorbotar
+            'Googlebot': 'Googlebot',
+            'bingbot': 'Bingbot',
+            'Yahoo! Slurp': 'Yahoo Slurp',
+            # SEO-verktyg
+            'AhrefsBot': 'Ahrefs',
+            'SemrushBot': 'Semrush',
+            'MJ12bot': 'Majestic',
+            'facebookexternalhit': 'Facebook',
+            'DotBot': 'Moz/DotBot',
+            'Screaming Frog': 'Screaming Frog',
+            'SiteAuditBot': 'Semrush Site Audit',
+            'MojeekBot': 'Mojeek',
+            'LinkedInBot': 'LinkedIn',
+            'Twitterbot': 'Twitter/X',
+            'Pinterest': 'Pinterest',
+            'Slackbot': 'Slack',
+            # AI-botar
+            'GPTBot': 'GPTBot (OpenAI)',
+            'ChatGPT-User': 'ChatGPT',
+            'Claude-Web': 'Claude (Anthropic)',
+            'Google-Extended': 'Google AI',
+            'CCBot': 'Common Crawl',
+            'anthropic-ai': 'Anthropic',
+            'Bytespider': 'ByteDance/TikTok',
+            'PerplexityBot': 'Perplexity AI',
+            'Applebot-Extended': 'Apple AI',
+            'FacebookBot': 'Meta AI',
+            'Omgilibot': 'Omgili',
+        }
+
+        for key, name in bot_mapping.items():
+            if key in user_agent:
+                return name
+
+        # Fallback: försök extrahera namn
+        if '(compatible;' in user_agent:
+            return user_agent.split('(compatible; ')[-1].split('/')[0].split(';')[0]
+        return user_agent.split('/')[0][:20]
 
     def test_seo_bot_accessibility(self) -> TestResult:
-        """Test 7: SEO Bot Accessibility - Kritiskt för SEO"""
-        self._log("Test 7: SEO Bot Accessibility...", "🔍")
+        """Test 1: SEO Bot Accessibility - Kritiskt för SEO
+
+        Testar om sökmotorbotar (Googlebot, Bingbot, etc.) och SEO-verktyg
+        (Ahrefs, Semrush, Screaming Frog) kan nå sidan genom att simulera
+        deras User-Agent strings.
+        """
+        self._log("Test 1: SEO Bot Accessibility...", "🔍")
+        self._log("   Testar: Sökmotorbotar, SEO-verktyg och AI-botar (26 st)", "")
+
+        # Rensa tidigare resultat
+        self.bot_accessibility_details = []
 
         try:
             accessible_bots = []
@@ -727,21 +613,39 @@ class AdvancedBotProtectionTester:
                         verify=False
                     )
 
-                    bot_name = bot_ua.split('/')[0].split('(compatible; ')[-1] if '(compatible;' in bot_ua else bot_ua.split('/')[0]
+                    bot_name = self._extract_bot_name(bot_ua)
+                    status_code = response.status_code
+                    passed = status_code == 200
 
-                    if response.status_code == 200:
+                    # Spara detaljerad info för PDF-rapport
+                    self.bot_accessibility_details.append({
+                        'name': bot_name,
+                        'category': 'Sökmotor',
+                        'passed': passed,
+                        'status_code': status_code
+                    })
+
+                    if passed:
                         accessible_bots.append(bot_name)
-                    elif response.status_code in [403, 406, 503]:
+                    elif status_code in [403, 406, 503]:
                         blocked_bots.append(bot_name)
                         self.seo_issues.append(f"Sökmotorbot blockerad: {bot_name}")
 
-                except:
+                except Exception as e:
+                    bot_name = self._extract_bot_name(bot_ua)
+                    self.bot_accessibility_details.append({
+                        'name': bot_name,
+                        'category': 'Sökmotor',
+                        'passed': False,
+                        'status_code': None,
+                        'error': str(e)[:50]
+                    })
                     continue
 
                 time.sleep(0.5)
 
-            # Test SEO-verktygsbotar
-            for bot_ua in self.user_agents['seo_bots'][:3]:  # Testa de 3 viktigaste
+            # Test SEO-verktygsbotar (testa alla, inte bara 3)
+            for bot_ua in self.user_agents['seo_bots']:
                 try:
                     response = requests.get(
                         self.target_url,
@@ -750,31 +654,92 @@ class AdvancedBotProtectionTester:
                         verify=False
                     )
 
-                    bot_name = bot_ua.split('/')[0].split('(compatible; ')[-1] if '(compatible;' in bot_ua else bot_ua.split('/')[0]
+                    bot_name = self._extract_bot_name(bot_ua)
+                    status_code = response.status_code
+                    passed = status_code == 200
 
-                    if response.status_code == 200:
+                    # Spara detaljerad info för PDF-rapport
+                    self.bot_accessibility_details.append({
+                        'name': bot_name,
+                        'category': 'SEO-verktyg',
+                        'passed': passed,
+                        'status_code': status_code
+                    })
+
+                    if passed:
                         accessible_bots.append(bot_name)
-                    elif response.status_code in [403, 406, 503]:
+                    elif status_code in [403, 406, 503]:
                         blocked_bots.append(bot_name)
 
-                except:
+                except Exception as e:
+                    bot_name = self._extract_bot_name(bot_ua)
+                    self.bot_accessibility_details.append({
+                        'name': bot_name,
+                        'category': 'SEO-verktyg',
+                        'passed': False,
+                        'status_code': None,
+                        'error': str(e)[:50]
+                    })
                     continue
 
                 time.sleep(0.5)
 
-            # Bedömning
+            # Test AI-botar
+            for bot_ua in self.user_agents['ai_bots']:
+                try:
+                    response = requests.get(
+                        self.target_url,
+                        headers={'User-Agent': bot_ua},
+                        timeout=self.timeout,
+                        verify=False
+                    )
+
+                    bot_name = self._extract_bot_name(bot_ua)
+                    status_code = response.status_code
+                    passed = status_code == 200
+
+                    # Spara detaljerad info för PDF-rapport
+                    self.bot_accessibility_details.append({
+                        'name': bot_name,
+                        'category': 'AI-bot',
+                        'passed': passed,
+                        'status_code': status_code
+                    })
+
+                    # AI-botar räknas inte mot SEO-score (det kan vara OK att blockera dem)
+                    if passed:
+                        accessible_bots.append(bot_name)
+
+                except Exception as e:
+                    bot_name = self._extract_bot_name(bot_ua)
+                    self.bot_accessibility_details.append({
+                        'name': bot_name,
+                        'category': 'AI-bot',
+                        'passed': False,
+                        'status_code': None,
+                        'error': str(e)[:50]
+                    })
+                    continue
+
+                time.sleep(0.5)
+
+            # Bedömning med lista över testade botar
+            bot_list = ', '.join(accessible_bots[:5])
+            if len(accessible_bots) > 5:
+                bot_list += f" +{len(accessible_bots)-5} till"
+
             if len(blocked_bots) == 0:
                 return TestResult(
                     test_name="SEO Bot Accessibility",
                     passed=True,
-                    details=f"✅ Alla SEO-botar ({len(accessible_bots)}) kan nå sidan - BRA för SEO",
+                    details=f"✅ Alla SEO-botar ({len(accessible_bots)}) kan nå sidan: {bot_list}",
                     severity="INFO"
                 )
             elif len(blocked_bots) <= 2:
                 return TestResult(
                     test_name="SEO Bot Accessibility",
                     passed=False,
-                    details=f"⚠️ Vissa SEO-botar blockerade: {', '.join(blocked_bots)}",
+                    details=f"⚠️ Vissa SEO-botar blockerade: {', '.join(blocked_bots)}. Tillåtna: {bot_list}",
                     severity="MEDIUM"
                 )
             else:
@@ -794,8 +759,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_robots_txt(self) -> TestResult:
-        """Test 8: Robots.txt Analysis"""
-        self._log("Test 8: Robots.txt Analysis...", "🤖")
+        """Test 2: Robots.txt Analysis"""
+        self._log("Test 2: Robots.txt Analysis...", "🤖")
 
         try:
             parsed = urlparse(self.target_url)
@@ -862,8 +827,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_sitemap_accessibility(self) -> TestResult:
-        """Test 9: Sitemap.xml Accessibility"""
-        self._log("Test 9: Sitemap Accessibility...", "🗺️")
+        """Test 3: Sitemap.xml Accessibility"""
+        self._log("Test 3: Sitemap Accessibility...", "🗺️")
 
         try:
             parsed = urlparse(self.target_url)
@@ -920,8 +885,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_cloaking_detection(self) -> TestResult:
-        """Test 10: Cloaking Detection - Bot vs User Content"""
-        self._log("Test 10: Cloaking Detection...", "👁️")
+        """Test 4: Cloaking Detection - Bot vs User Content"""
+        self._log("Test 4: Cloaking Detection...", "👁️")
 
         try:
             # Hämta som vanlig användare
@@ -985,8 +950,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_ai_bot_accessibility(self) -> TestResult:
-        """Test 11: AI Bot Accessibility - GPTBot, Claude, etc."""
-        self._log("Test 11: AI Bot Accessibility...", "🤖")
+        """Test 5: AI Bot Accessibility - GPTBot, Claude, etc."""
+        self._log("Test 5: AI Bot Accessibility...", "🤖")
 
         try:
             accessible_bots = []
@@ -1046,8 +1011,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_response_time_comparison(self) -> TestResult:
-        """Test 12: Response Time Comparison - Bot vs User"""
-        self._log("Test 12: Response Time Comparison (Bot Throttling)...", "⏱️")
+        """Test 6: Response Time Comparison - Bot vs User"""
+        self._log("Test 6: Response Time Comparison (Bot Throttling)...", "⏱️")
 
         try:
             # Test som vanlig användare
@@ -1113,8 +1078,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_googlebot_stress_test(self) -> TestResult:
-        """Test 13: Googlebot Stress Test - Rate limiting för SEO-botar"""
-        self._log("Test 13: Googlebot Stress Test (Rate Limiting)...", "🚨")
+        """Test 7: Googlebot Stress Test - Rate limiting för SEO-botar"""
+        self._log("Test 7: Googlebot Stress Test (Rate Limiting)...", "🚨")
 
         try:
             googlebot_ua = self.user_agents['search_engine_bots'][0]
@@ -1177,8 +1142,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_bot_differential_treatment(self) -> TestResult:
-        """Test 14: SEO Bot Differential Treatment - Jämför bot vs user behandling"""
-        self._log("Test 14: Bot Differential Treatment...", "⚖️")
+        """Test 8: SEO Bot Differential Treatment - Jämför bot vs user behandling"""
+        self._log("Test 8: Bot Differential Treatment...", "⚖️")
 
         try:
             results = {}
@@ -1266,8 +1231,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_progressive_blocking(self) -> TestResult:
-        """Test 15: Progressive Blocking Detection - Blir botten gradvis blockerad"""
-        self._log("Test 15: Progressive Blocking Detection...", "📉")
+        """Test 9: Progressive Blocking Detection - Blir botten gradvis blockerad"""
+        self._log("Test 9: Progressive Blocking Detection...", "📉")
 
         try:
             googlebot_ua = self.user_agents['search_engine_bots'][0]
@@ -1351,13 +1316,366 @@ class AdvancedBotProtectionTester:
                 severity="MEDIUM"
             )
 
+    def test_mobile_vs_desktop_googlebot(self) -> TestResult:
+        """Test 10: Mobile vs Desktop Googlebot - Mobile-First Indexing"""
+        self._log("Test 10: Mobile vs Desktop Googlebot...", "📱")
+
+        try:
+            # Test med Desktop Googlebot
+            desktop_response = requests.get(
+                self.target_url,
+                headers={'User-Agent': self.user_agents['googlebot_desktop'][0]},
+                timeout=self.timeout,
+                verify=False
+            )
+            desktop_code = desktop_response.status_code
+            desktop_length = len(desktop_response.content)
+            desktop_time = desktop_response.elapsed.total_seconds()
+
+            time.sleep(1)
+
+            # Test med Mobile Googlebot
+            mobile_response = requests.get(
+                self.target_url,
+                headers={'User-Agent': self.user_agents['googlebot_mobile'][0]},
+                timeout=self.timeout,
+                verify=False
+            )
+            mobile_code = mobile_response.status_code
+            mobile_length = len(mobile_response.content)
+            mobile_time = mobile_response.elapsed.total_seconds()
+
+            issues = []
+
+            # Kolla statuskoder
+            if desktop_code != mobile_code:
+                issues.append(f"Olika statuskoder: Desktop {desktop_code}, Mobile {mobile_code}")
+                self.seo_issues.append(f"Mobile Googlebot får annorlunda statuskod ({mobile_code}) än Desktop ({desktop_code})")
+
+            # Kolla om mobile blockeras
+            if mobile_code in [403, 406, 503] and desktop_code == 200:
+                self.seo_issues.append("Mobile Googlebot BLOCKERAS - KRITISKT för Mobile-First Indexing")
+                return TestResult(
+                    test_name="Mobile vs Desktop Googlebot",
+                    passed=False,
+                    details=f"❌ Mobile Googlebot blockeras (HTTP {mobile_code}) men Desktop tillåts - KRITISKT för SEO",
+                    severity="CRITICAL"
+                )
+
+            # Kolla content-skillnad
+            if desktop_length > 0:
+                content_diff = abs(desktop_length - mobile_length) / desktop_length * 100
+                if content_diff > 20:
+                    issues.append(f"Stor content-skillnad: {content_diff:.1f}%")
+                    self.seo_issues.append(f"Mobile version har {content_diff:.1f}% annorlunda content - kan påverka Mobile-First Indexing")
+
+            # Kolla response time skillnad
+            if mobile_time > desktop_time * 1.5:
+                issues.append(f"Mobile långsammare: {mobile_time:.2f}s vs {desktop_time:.2f}s")
+
+            if issues:
+                return TestResult(
+                    test_name="Mobile vs Desktop Googlebot",
+                    passed=False,
+                    details=f"⚠️ Skillnader detekterade: {'; '.join(issues)}",
+                    severity="HIGH"
+                )
+            else:
+                return TestResult(
+                    test_name="Mobile vs Desktop Googlebot",
+                    passed=True,
+                    details=f"✅ Mobile och Desktop Googlebot behandlas lika (båda HTTP {mobile_code}, ~{mobile_length} bytes) - BRA för Mobile-First Indexing",
+                    severity="INFO"
+                )
+
+        except Exception as e:
+            return TestResult(
+                test_name="Mobile vs Desktop Googlebot",
+                passed=False,
+                details=f"⚠️ Fel vid test: {str(e)[:100]}",
+                severity="MEDIUM"
+            )
+
+    def test_blocked_resources(self) -> TestResult:
+        """Test 11: Blocked Resources Detection - CSS/JS tillgänglighet för botar
+
+        Testar om CSS- och JavaScript-filer är tillgängliga för Googlebot.
+        Om dessa blockeras kan Google inte rendera sidan korrekt, vilket
+        påverkar hur sidan indexeras och rankas.
+        """
+        self._log("Test 11: Blocked Resources Detection...", "🚫")
+        self._log("   Testar om CSS/JS-resurser är tillgängliga för Googlebot", "")
+
+        try:
+            import re
+
+            # Hämta sidan som Googlebot
+            response = requests.get(
+                self.target_url,
+                headers={'User-Agent': self.user_agents['googlebot_desktop'][0]},
+                timeout=self.timeout,
+                verify=False
+            )
+
+            if response.status_code != 200:
+                return TestResult(
+                    test_name="Blocked Resources",
+                    passed=False,
+                    details=f"⚠️ Kunde inte hämta sidan (HTTP {response.status_code})",
+                    severity="MEDIUM"
+                )
+
+            html = response.text
+            parsed = urlparse(self.target_url)
+            base_url = f"{parsed.scheme}://{parsed.netloc}"
+
+            # Hitta CSS och JS resurser
+            css_pattern = r'<link[^>]+href=["\']([^"\']+\.css[^"\']*)["\']'
+            js_pattern = r'<script[^>]+src=["\']([^"\']+\.js[^"\']*)["\']'
+
+            css_urls = re.findall(css_pattern, html, re.IGNORECASE)
+            js_urls = re.findall(js_pattern, html, re.IGNORECASE)
+
+            all_resources = []
+            tested_names = []
+
+            for url in css_urls[:5]:  # Testa max 5 CSS
+                if url.startswith('//'):
+                    all_resources.append(('CSS', f"https:{url}"))
+                elif url.startswith('/'):
+                    all_resources.append(('CSS', f"{base_url}{url}"))
+                elif url.startswith('http'):
+                    all_resources.append(('CSS', url))
+
+            for url in js_urls[:5]:  # Testa max 5 JS
+                if url.startswith('//'):
+                    all_resources.append(('JS', f"https:{url}"))
+                elif url.startswith('/'):
+                    all_resources.append(('JS', f"{base_url}{url}"))
+                elif url.startswith('http'):
+                    all_resources.append(('JS', url))
+
+            if not all_resources:
+                return TestResult(
+                    test_name="Blocked Resources",
+                    passed=True,
+                    details="ℹ️ Inga externa CSS/JS-resurser hittades att testa (inline styles/scripts)",
+                    severity="INFO"
+                )
+
+            blocked_resources = []
+            accessible_resources = 0
+
+            for resource_type, resource_url in all_resources:
+                filename = resource_url.split('/')[-1].split('?')[0][:30]  # Korta ner filnamn
+                try:
+                    res_response = requests.get(
+                        resource_url,
+                        headers={'User-Agent': self.user_agents['googlebot_desktop'][0]},
+                        timeout=5,
+                        verify=False
+                    )
+
+                    if res_response.status_code in [403, 406, 503]:
+                        blocked_resources.append(f"{resource_type}: {filename}")
+                    elif res_response.status_code == 200:
+                        accessible_resources += 1
+                        tested_names.append(f"{resource_type}:{filename}")
+
+                except:
+                    blocked_resources.append(f"{resource_type}: {filename} (timeout)")
+
+                time.sleep(0.2)
+
+            # Skapa lista över testade resurser
+            tested_list = ', '.join(tested_names[:4])
+            if len(tested_names) > 4:
+                tested_list += f" +{len(tested_names)-4} till"
+
+            if blocked_resources:
+                self.seo_issues.append(f"{len(blocked_resources)} CSS/JS-resurser blockerade för Googlebot - påverkar rendering")
+                return TestResult(
+                    test_name="Blocked Resources",
+                    passed=False,
+                    details=f"❌ {len(blocked_resources)} resurser blockerade: {', '.join(blocked_resources[:3])} - Google kan inte rendera sidan korrekt",
+                    severity="HIGH"
+                )
+            else:
+                return TestResult(
+                    test_name="Blocked Resources",
+                    passed=True,
+                    details=f"✅ Alla {accessible_resources} resurser tillgängliga: {tested_list}",
+                    severity="INFO"
+                )
+
+        except Exception as e:
+            return TestResult(
+                test_name="Blocked Resources",
+                passed=False,
+                details=f"⚠️ Fel vid test: {str(e)[:100]}",
+                severity="LOW"
+            )
+
+    def test_protocol_consistency(self) -> TestResult:
+        """Test 12: HTTP/HTTPS & WWW Consistency - Redirect-hantering
+
+        Testar att alla URL-varianter (http/https, www/non-www) redirectar
+        till samma destination. Duplicate content uppstår om flera URL:er
+        serverar samma innehåll utan redirects.
+
+        SEO-påverkan: Google kan indexera samma sida flera gånger,
+        vilket späder ut länkkraft och skapar duplicate content.
+        """
+        self._log("Test 12: Protocol & WWW Consistency...", "🔗")
+        self._log("   Testar: http vs https, www vs non-www redirects", "")
+
+        try:
+            parsed = urlparse(self.target_url)
+            domain = parsed.netloc
+
+            # Ta bort www. om det finns för att få "ren" domän
+            clean_domain = domain.replace('www.', '')
+
+            # Skapa alla varianter att testa
+            variants = [
+                f"http://{clean_domain}",
+                f"https://{clean_domain}",
+                f"http://www.{clean_domain}",
+                f"https://www.{clean_domain}"
+            ]
+
+            results = {}
+            issues = []
+            detailed_results = []
+
+            for variant in variants:
+                try:
+                    response = requests.get(
+                        variant,
+                        headers={'User-Agent': self.user_agents['googlebot_desktop'][0]},
+                        timeout=self.timeout,
+                        verify=False,
+                        allow_redirects=False  # Följ inte redirects automatiskt
+                    )
+
+                    results[variant] = {
+                        'code': response.status_code,
+                        'location': response.headers.get('Location', None)
+                    }
+
+                    # Spara detaljerat resultat
+                    short_variant = variant.replace('https://', '').replace('http://', '')
+                    if response.status_code in [301, 302, 307, 308]:
+                        loc = response.headers.get('Location', '?')
+                        detailed_results.append(f"{short_variant} → {loc.split('/')[-1] if '/' in loc else loc}")
+                    else:
+                        detailed_results.append(f"{short_variant} = {response.status_code}")
+
+                except requests.exceptions.ConnectionError:
+                    results[variant] = {'code': 'CONNECTION_ERROR', 'location': None}
+                except requests.exceptions.Timeout:
+                    results[variant] = {'code': 'TIMEOUT', 'location': None}
+                except Exception as e:
+                    results[variant] = {'code': 'ERROR', 'location': None}
+
+                time.sleep(0.3)
+
+            # Analysera resultat
+
+            # 1. Kolla att HTTP redirectar till HTTPS
+            http_variant = f"http://{clean_domain}"
+
+            if http_variant in results and results[http_variant]['code'] not in [301, 302, 307, 308]:
+                if results[http_variant]['code'] == 200:
+                    issues.append(f"http://{clean_domain} svarar 200 (borde redirecta till HTTPS)")
+                    self.seo_issues.append(f"HTTP-version ({clean_domain}) redirectar INTE till HTTPS - duplicate content risk")
+
+            # 2. Kolla att alla varianter pekar till samma destination
+            final_destinations = set()
+            destination_details = {}
+            for variant, data in results.items():
+                if data['location']:
+                    final_destinations.add(data['location'])
+                    destination_details[variant] = data['location']
+                elif data['code'] == 200:
+                    final_destinations.add(variant)
+                    destination_details[variant] = variant
+
+            if len(final_destinations) > 1:
+                dest_list = list(final_destinations)[:3]
+                issues.append(f"{len(final_destinations)} olika destinations: {', '.join([d.replace('https://', '').replace('http://', '') for d in dest_list])}")
+                self.seo_issues.append("WWW/non-WWW pekar på olika destinations - duplicate content risk")
+
+            # 3. Kolla redirect chains (mer än 1 redirect)
+            for variant in variants:
+                try:
+                    chain_response = requests.get(
+                        variant,
+                        headers={'User-Agent': self.user_agents['googlebot_desktop'][0]},
+                        timeout=self.timeout,
+                        verify=False,
+                        allow_redirects=True
+                    )
+
+                    redirect_count = len(chain_response.history)
+                    if redirect_count > 2:
+                        issues.append(f"Redirect chain: {redirect_count} hopp (max 2 rekommenderas)")
+                        self.seo_issues.append(f"Redirect chain för lång ({redirect_count} hopp) - slösar crawl budget")
+                        break  # Räcker att hitta ett problem
+
+                except:
+                    pass
+
+                time.sleep(0.2)
+
+            # Sammanfatta
+            if issues:
+                return TestResult(
+                    test_name="Protocol & WWW Consistency",
+                    passed=False,
+                    details=f"⚠️ URL-konsistensproblem: {'; '.join(issues[:2])}",
+                    severity="HIGH"
+                )
+            else:
+                # Visa vilken som är "canonical"
+                canonical = None
+                for variant, data in results.items():
+                    if data['code'] == 200:
+                        canonical = variant.replace('https://', '').replace('http://', '')
+                        break
+
+                return TestResult(
+                    test_name="Protocol & WWW Consistency",
+                    passed=True,
+                    details=f"✅ Alla varianter redirectar korrekt till {canonical or 'samma URL'} - ingen duplicate content risk",
+                    severity="INFO"
+                )
+
+        except Exception as e:
+            return TestResult(
+                test_name="Protocol & WWW Consistency",
+                passed=False,
+                details=f"⚠️ Fel vid test: {str(e)[:100]}",
+                severity="LOW"
+            )
+
     def test_server_performance(self) -> TestResult:
-        """Test 16: Server Performance Analysis - TTFB & Response Times"""
-        self._log("Test 16: Server Performance Analysis...", "⚡")
+        """Test 13: Server Performance Analysis - TTFB, SSL, Compression, Caching
+
+        Testar server-prestanda ur ett SEO-perspektiv:
+        - TTFB (Time To First Byte) - Google rekommenderar <200ms
+        - SSL-certifikat - HTTPS är en rankingfaktor
+        - Komprimering (gzip/brotli) - Påverkar sidladdning
+        - Cache-headers - Påverkar crawl budget
+        """
+        self._log("Test 13: Server Performance Analysis...", "⚡")
+        self._log("   Testar: TTFB, SSL-cert, komprimering, cache-headers", "")
 
         try:
             response_times = []
             ttfb_times = []
+            features = []
+            problems = []
 
             # Gör 5 requests för att få genomsnittlig performance
             for i in range(5):
@@ -1365,9 +1683,12 @@ class AdvancedBotProtectionTester:
                     start = time.time()
                     response = requests.get(
                         self.target_url,
-                        headers={'User-Agent': self.user_agents['legitimate'][0]},
+                        headers={
+                            'User-Agent': self.user_agents['legitimate'][0],
+                            'Accept-Encoding': 'gzip, deflate, br'
+                        },
                         timeout=self.timeout,
-                        verify=False,
+                        verify=True,  # Verifiera SSL
                         stream=True  # För att mäta TTFB
                     )
 
@@ -1380,10 +1701,120 @@ class AdvancedBotProtectionTester:
                     total_time = time.time() - start
                     response_times.append(total_time)
 
+                    # Endast på första request: kolla headers
+                    if i == 0:
+                        headers = response.headers
+
+                        # Kolla komprimering
+                        content_encoding = headers.get('Content-Encoding', '').lower()
+                        if 'br' in content_encoding:
+                            features.append(f"Komprimering: brotli")
+                            self.server_performance_details['compression'] = {
+                                'value': 'Brotli', 'status': 'good', 'label': 'Komprimering'
+                            }
+                        elif 'gzip' in content_encoding:
+                            features.append(f"Komprimering: gzip")
+                            self.server_performance_details['compression'] = {
+                                'value': 'Gzip', 'status': 'good', 'label': 'Komprimering'
+                            }
+                        else:
+                            problems.append("Ingen komprimering (gzip/brotli)")
+                            self.server_performance_issues.append("Ingen gzip/brotli-komprimering - långsammare sidladdning")
+                            self.server_performance_details['compression'] = {
+                                'value': 'Saknas', 'status': 'critical', 'label': 'Komprimering'
+                            }
+
+                        # Kolla cache-headers
+                        cache_control = headers.get('Cache-Control', '')
+                        if cache_control and 'no-' not in cache_control.lower():
+                            features.append("Cache aktivt")
+                            self.server_performance_details['cache'] = {
+                                'value': 'Aktivt', 'status': 'good', 'label': 'Cache'
+                            }
+                        elif 'no-cache' in cache_control.lower() or 'no-store' in cache_control.lower():
+                            self.server_performance_details['cache'] = {
+                                'value': 'Inaktivt', 'status': 'warning', 'label': 'Cache'
+                            }
+                        else:
+                            problems.append("Inga cache-headers")
+                            self.server_performance_details['cache'] = {
+                                'value': 'Saknas', 'status': 'warning', 'label': 'Cache'
+                            }
+
+                        # Kolla HTTP-version
+                        if hasattr(response.raw, 'version'):
+                            if response.raw.version == 20:
+                                features.append("HTTP/2")
+                                self.server_performance_details['http_version'] = {
+                                    'value': 'HTTP/2', 'status': 'good', 'label': 'Protokoll'
+                                }
+                            elif response.raw.version == 11:
+                                self.server_performance_details['http_version'] = {
+                                    'value': 'HTTP/1.1', 'status': 'ok', 'label': 'Protokoll'
+                                }
+
+                        # Kolla server-header
+                        server_header = headers.get('Server', '')
+                        if server_header:
+                            self.server_performance_details['server'] = {
+                                'value': server_header[:20], 'status': 'info', 'label': 'Server'
+                            }
+
+                except requests.exceptions.SSLError as e:
+                    problems.append("SSL-certifikatfel")
+                    self.server_performance_issues.append(f"SSL-certifikatproblem: {str(e)[:50]}")
+                    self.seo_issues.append("SSL-certifikatfel - HTTPS är en Google rankingfaktor")
                 except Exception as e:
                     continue
 
                 time.sleep(0.5)
+
+            # Testa SSL-certifikat separat
+            try:
+                import ssl
+                import socket
+                parsed = urlparse(self.target_url)
+                hostname = parsed.netloc
+
+                context = ssl.create_default_context()
+                with socket.create_connection((hostname, 443), timeout=5) as sock:
+                    with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                        cert = ssock.getpeercert()
+                        # Kolla utgångsdatum
+                        import datetime
+                        not_after = cert.get('notAfter', '')
+                        if not_after:
+                            # Exempel: 'Dec 31 23:59:59 2024 GMT'
+                            try:
+                                expire_date = datetime.datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
+                                days_left = (expire_date - datetime.datetime.now()).days
+                                if days_left < 30:
+                                    problems.append(f"SSL går ut om {days_left} dagar!")
+                                    self.seo_issues.append(f"SSL-certifikat går ut om {days_left} dagar")
+                                    self.server_performance_details['ssl'] = {
+                                        'value': f'{days_left}d', 'status': 'critical', 'label': 'SSL'
+                                    }
+                                elif days_left < 90:
+                                    features.append(f"SSL OK ({days_left}d kvar)")
+                                    self.server_performance_details['ssl'] = {
+                                        'value': f'{days_left}d', 'status': 'warning', 'label': 'SSL'
+                                    }
+                                else:
+                                    features.append("SSL giltigt")
+                                    self.server_performance_details['ssl'] = {
+                                        'value': f'{days_left}d', 'status': 'good', 'label': 'SSL'
+                                    }
+                            except:
+                                features.append("SSL OK")
+                                self.server_performance_details['ssl'] = {
+                                    'value': 'OK', 'status': 'good', 'label': 'SSL'
+                                }
+            except Exception as e:
+                if "SSL" not in str(problems):
+                    problems.append("Kunde inte verifiera SSL")
+                    self.server_performance_details['ssl'] = {
+                        'value': 'Fel', 'status': 'critical', 'label': 'SSL'
+                    }
 
             if not response_times:
                 return TestResult(
@@ -1395,60 +1826,63 @@ class AdvancedBotProtectionTester:
 
             avg_ttfb = sum(ttfb_times) / len(ttfb_times)
             avg_response = sum(response_times) / len(response_times)
-            max_response = max(response_times)
-            min_response = min(response_times)
 
             # Spara server info
             self.server_info['avg_ttfb'] = avg_ttfb
             self.server_info['avg_response_time'] = avg_response
-            self.server_info['response_time_variance'] = max_response - min_response
 
-            # Bedöm performance
-            issues = []
-
-            # TTFB bedömning (Google rekommenderar <200ms, max 600ms)
-            if avg_ttfb > 1.0:  # >1s
-                issues.append(f"TTFB mycket långsam ({avg_ttfb:.2f}s)")
-                self.server_performance_issues.append(f"TTFB {avg_ttfb:.2f}s - KRITISKT långsamt")
+            # Bedöm TTFB och spara detaljerad info för PDF
+            severity = "INFO"
+            if avg_ttfb > 1.0:
+                problems.append(f"TTFB {avg_ttfb:.2f}s (KRITISKT, mål <0.2s)")
+                self.server_performance_issues.append(f"TTFB {avg_ttfb:.2f}s - KRITISKT långsamt (Google rekommenderar <200ms)")
                 severity = "CRITICAL"
-            elif avg_ttfb > 0.6:  # >600ms
-                issues.append(f"TTFB långsam ({avg_ttfb:.2f}s)")
-                self.server_performance_issues.append(f"TTFB {avg_ttfb:.2f}s - Långsammare än Google's rekommendation")
+                self.server_performance_details['ttfb'] = {
+                    'value': f"{avg_ttfb:.2f}s", 'status': 'critical', 'label': 'TTFB'
+                }
+            elif avg_ttfb > 0.6:
+                problems.append(f"TTFB {avg_ttfb:.2f}s (långsamt)")
+                self.server_performance_issues.append(f"TTFB {avg_ttfb:.2f}s - Långsammare än Google's rekommendation (200ms)")
                 severity = "HIGH"
-            elif avg_ttfb > 0.2:  # >200ms
-                issues.append(f"TTFB acceptabel ({avg_ttfb:.2f}s)")
+                self.server_performance_details['ttfb'] = {
+                    'value': f"{avg_ttfb:.2f}s", 'status': 'warning', 'label': 'TTFB'
+                }
+            elif avg_ttfb > 0.2:
+                features.append(f"TTFB {avg_ttfb:.2f}s (OK)")
                 severity = "MEDIUM"
+                self.server_performance_details['ttfb'] = {
+                    'value': f"{avg_ttfb:.2f}s", 'status': 'ok', 'label': 'TTFB'
+                }
             else:
-                severity = "INFO"
+                features.append(f"TTFB {avg_ttfb:.3f}s (snabb)")
+                self.server_performance_details['ttfb'] = {
+                    'value': f"{avg_ttfb:.0f}ms", 'status': 'good', 'label': 'TTFB'
+                }
 
-            # Total response time bedömning
-            if avg_response > 3.0:
-                issues.append(f"Mycket långsam server ({avg_response:.2f}s)")
-                self.server_performance_issues.append(f"Response time {avg_response:.2f}s - Mycket långsam")
-                severity = "CRITICAL"
-            elif avg_response > 2.0:
-                issues.append(f"Långsam server ({avg_response:.2f}s)")
-                severity = "HIGH"
+            # Sammanställ resultat
+            feature_str = ', '.join(features[:4]) if features else "inga optimeringar"
+            problem_str = '; '.join(problems[:2]) if problems else ""
 
-            # Variabilitet
-            variance = max_response - min_response
-            if variance > 1.0:
-                issues.append(f"Inkonsekvent performance (varierar {variance:.2f}s)")
-                self.server_performance_issues.append("Server performance inkonsekvent")
-
-            if not issues or severity == "INFO":
+            if problems and severity in ["CRITICAL", "HIGH"]:
+                return TestResult(
+                    test_name="Server Performance",
+                    passed=False,
+                    details=f"⚠️ {problem_str}. Optimeringar: {feature_str}",
+                    severity=severity
+                )
+            elif problems:
                 return TestResult(
                     test_name="Server Performance",
                     passed=True,
-                    details=f"✅ Bra server performance: TTFB {avg_ttfb:.2f}s, Avg {avg_response:.2f}s - BRA för SEO",
+                    details=f"✅ TTFB {avg_ttfb:.2f}s. {feature_str}. Tips: {problem_str}",
                     severity="INFO"
                 )
             else:
                 return TestResult(
                     test_name="Server Performance",
-                    passed=False,
-                    details=f"⚠️ Performance-problem: {'; '.join(issues)} - Påverkar SEO negativt",
-                    severity=severity
+                    passed=True,
+                    details=f"✅ Utmärkt! TTFB {avg_ttfb:.3f}s, {feature_str}",
+                    severity="INFO"
                 )
 
         except Exception as e:
@@ -1460,8 +1894,21 @@ class AdvancedBotProtectionTester:
             )
 
     def test_server_load_handling(self) -> TestResult:
-        """Test 17: Server Load Handling - Klarar servern belastning?"""
-        self._log("Test 17: Server Load Handling...", "💪")
+        """Test 14: Server Load Handling - Klarar servern belastning?
+
+        Simulerar hur servern presterar när Googlebot crawlar flera sidor
+        samtidigt. Googlebot kan göra 2-10+ requests per sekund beroende
+        på din servers kapacitet.
+
+        SEO-påverkan:
+        - Om servern blir långsam: Google minskar crawl rate
+        - Om requests misslyckas: Sidor indexeras inte
+        - Långsam server = sämre användarupplevelse = lägre ranking
+
+        Testet skickar 10 samtidiga requests och jämför med baseline.
+        """
+        self._log("Test 14: Server Load Handling...", "💪")
+        self._log("   Simulerar: 10 samtidiga requests (som Googlebot vid aktiv crawling)", "")
 
         try:
             import concurrent.futures
@@ -1487,7 +1934,7 @@ class AdvancedBotProtectionTester:
                         'error': str(e)[:50]
                     }
 
-            # Skicka 10 samtidiga requests
+            # Skicka 10 samtidiga requests (simulerar Googlebot crawling)
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                 futures = [executor.submit(make_request) for _ in range(10)]
                 results = [f.result() for f in concurrent.futures.as_completed(futures)]
@@ -1496,18 +1943,18 @@ class AdvancedBotProtectionTester:
             failed = [r for r in results if not r['success']]
 
             if not successful:
-                self.server_performance_issues.append("Server klarar inte concurrent requests")
+                self.server_performance_issues.append("Server klarar inte concurrent requests - Googlebot kan inte crawla effektivt")
                 return TestResult(
                     test_name="Server Load Handling",
                     passed=False,
-                    details=f"❌ Server klarar inte belastning: 0/{len(results)} requests lyckades - KRITISKT för SEO",
+                    details=f"❌ Server kollapsade: 0/10 requests lyckades - Googlebot kan inte crawla din sajt under normal belastning",
                     severity="CRITICAL"
                 )
 
             avg_concurrent_time = sum(r['time'] for r in successful) / len(successful)
             success_rate = len(successful) / len(results) * 100
 
-            # Jämför med baseline (om den finns)
+            # Jämför med baseline (en request i taget)
             baseline = self.server_info.get('avg_response_time', 0)
             if baseline > 0:
                 slowdown = (avg_concurrent_time / baseline - 1) * 100
@@ -1515,33 +1962,33 @@ class AdvancedBotProtectionTester:
                 slowdown = 0
 
             if success_rate < 70:
-                self.server_performance_issues.append(f"Svag server - endast {success_rate:.0f}% requests lyckades under load")
+                self.server_performance_issues.append(f"Server för svag - {100-success_rate:.0f}% av requests misslyckades")
                 return TestResult(
                     test_name="Server Load Handling",
                     passed=False,
-                    details=f"❌ Svag server: {success_rate:.0f}% success rate, {len(failed)} failures - Server klarar inte normal crawl-belastning",
+                    details=f"❌ Server för svag: {len(failed)}/10 requests misslyckades. Google kommer minska crawl rate drastiskt",
                     severity="CRITICAL"
                 )
             elif slowdown > 100:  # >100% långsammare under load
-                self.server_performance_issues.append(f"Server presterar {slowdown:.0f}% sämre under belastning")
+                self.server_performance_issues.append(f"Server {slowdown:.0f}% långsammare under belastning")
                 return TestResult(
                     test_name="Server Load Handling",
                     passed=False,
-                    details=f"⚠️ Server långsam under load: {slowdown:.0f}% långsammare ({avg_concurrent_time:.2f}s vs {baseline:.2f}s baseline)",
+                    details=f"⚠️ Server sackar vid belastning: {slowdown:.0f}% långsammare (baseline {baseline:.2f}s → {avg_concurrent_time:.2f}s vid 10 requests). Google anpassar crawl rate efter serverns kapacitet",
                     severity="HIGH"
                 )
             elif slowdown > 50:
                 return TestResult(
                     test_name="Server Load Handling",
-                    passed=False,
-                    details=f"ℹ️ Server något långsammare under load: {slowdown:.0f}% långsammare",
+                    passed=True,
+                    details=f"ℹ️ Server något långsammare under load: +{slowdown:.0f}% ({baseline:.2f}s → {avg_concurrent_time:.2f}s) - Acceptabelt",
                     severity="MEDIUM"
                 )
             else:
                 return TestResult(
                     test_name="Server Load Handling",
                     passed=True,
-                    details=f"✅ Server klarar belastning bra: {success_rate:.0f}% success rate, {avg_concurrent_time:.2f}s avg - Kan hantera Googlebot crawling",
+                    details=f"✅ Server stabil under belastning: 10/10 lyckades, {avg_concurrent_time:.2f}s avg (+{slowdown:.0f}% vs baseline). Klarar Googlebot crawling bra",
                     severity="INFO"
                 )
 
@@ -1554,8 +2001,8 @@ class AdvancedBotProtectionTester:
             )
 
     def test_server_technology_detection(self) -> TestResult:
-        """Test 18: Server Technology Detection"""
-        self._log("Test 18: Server Technology Detection...", "🔧")
+        """Test 15: Server Technology Detection"""
+        self._log("Test 15: Server Technology Detection...", "🔧")
 
         try:
             response = requests.get(
@@ -1623,40 +2070,43 @@ class AdvancedBotProtectionTester:
             )
 
     def calculate_security_score(self) -> Tuple[int, str]:
-        """Beräknar säkerhetspoäng med viktning"""
+        """Beräknar SEO crawlbarhet-poäng baserat på testresultat"""
+        # Vikter baserat på hur kritiskt testet är för SEO
         weights = {
-            'CRITICAL': 0,
-            'HIGH': 10,
-            'MEDIUM': 15,
-            'LOW': 20,
-            'INFO': 0
+            'CRITICAL': 25,  # Kritiska SEO-problem
+            'HIGH': 15,      # Viktiga problem
+            'MEDIUM': 10,    # Medelviktiga problem
+            'LOW': 5,        # Mindre problem
+            'INFO': 10       # Informativa tester (bra om de passerar)
         }
-        
-        max_score = 0
-        actual_score = 0
-        
-        for result in self.results:
-            weight = weights.get(result.severity, 15)
-            max_score += weight
-            if result.passed:
-                actual_score += weight
-        
-        if max_score == 0:
+
+        total_tests = len(self.results)
+        if total_tests == 0:
             return 0, "🔴 INGEN DATA"
-        
-        score = int((actual_score / max_score) * 100)
-        
+
+        # Räkna poäng: varje test som passerar ger poäng
+        passed_tests = sum(1 for r in self.results if r.passed)
+        failed_critical = sum(1 for r in self.results if not r.passed and r.severity == 'CRITICAL')
+        failed_high = sum(1 for r in self.results if not r.passed and r.severity == 'HIGH')
+
+        # Baspoäng: procent av passerade tester
+        base_score = (passed_tests / total_tests) * 100
+
+        # Avdrag för kritiska och höga fel
+        penalty = (failed_critical * 15) + (failed_high * 8)
+        score = max(0, int(base_score - penalty))
+
         if score >= 85:
-            rating = "🟢 STARKT BOT-SKYDD"
+            rating = "🟢 UTMÄRKT SEO CRAWLBARHET"
         elif score >= 65:
-            rating = "🟡 MEDEL BOT-SKYDD"
+            rating = "🟡 BRA SEO CRAWLBARHET"
         elif score >= 40:
-            rating = "🟠 SVAGT BOT-SKYDD"
+            rating = "🟠 MEDEL SEO CRAWLBARHET"
         else:
-            rating = "🔴 MYCKET SVAGT BOT-SKYDD"
-        
+            rating = "🔴 DÅLIG SEO CRAWLBARHET"
+
         return score, rating
-    
+
     def generate_recommendations(self) -> List[str]:
         """Genererar rekommendationer baserat på resultat"""
         recommendations = []
@@ -1684,57 +2134,49 @@ class AdvancedBotProtectionTester:
             recommendations.append("     → Whitelist Googlebot i Cloudflare (Security > Bots)")
             recommendations.append("     → Sänk 'Bot Fight Mode' eller använd 'Super Bot Fight Mode' med exceptions")
             recommendations.append("     → Verifiera att 'Verified Bots' är allowade")
-            recommendations.append("     → Testa: https://www.cloudflare.com/learning/bots/what-is-a-bot/")
             recommendations.append("")
-
-        # SÄKERHETSREKOMMENDATIONER
-        recommendations.append("🛡️ SÄKERHETSREKOMMENDATIONER:")
-
-        if "Rate Limiting" not in self.protection_layers:
-            recommendations.append("  ⚠️ Implementera rate limiting (Cloudflare, Nginx limit_req, AWS WAF)")
-
-        if "User-Agent Filtering" not in self.protection_layers:
-            recommendations.append("  ⚠️ Filtrera suspekta user agents (scrapers, bots, automation tools)")
-
-        if "WAF: Cloudflare" not in self.protection_layers and "WAF: Akamai" not in self.protection_layers:
-            recommendations.append("  ⚠️ Överväg ett CDN/WAF (Cloudflare, Akamai, AWS WAF)")
-
-        if "JavaScript Challenge" not in self.protection_layers:
-            recommendations.append("  💡 Aktivera JavaScript challenges för bot-verifiering")
-
-        if "Behavioral Analysis" not in self.protection_layers:
-            recommendations.append("  💡 Implementera behavioral analysis (fingerprinting, timing analysis)")
-
-        if "Advanced Fingerprinting" not in self.protection_layers:
-            recommendations.append("  💡 Blockera proxy/VPN headers och anonymiseringstjänster")
-
-        # Lägg till specifika sårbarheter
-        for vuln in self.vulnerabilities:
-            if "API endpoints" in vuln:
-                recommendations.append(f"  🔴 {vuln}")
 
         # SEO-REKOMMENDATIONER
         if self.seo_issues:
+            recommendations.append("🔍 SEO CRAWLBARHET-REKOMMENDATIONER:")
             recommendations.append("")
-            recommendations.append("🔍 SEO-REKOMMENDATIONER:")
             for issue in self.seo_issues:
-                if "blockerad" in issue.lower():
-                    recommendations.append(f"  🔴 {issue} - Justera WAF/bot-filter för att tillåta legitima SEO-botar")
+                if "blockerad" in issue.lower() or "BLOCKERAS" in issue:
+                    recommendations.append(f"  🔴 {issue}")
+                    recommendations.append("     → Justera WAF/bot-filter för att tillåta legitima SEO-botar")
                 elif "sitemap" in issue.lower():
-                    recommendations.append(f"  ⚠️ {issue} - Skapa sitemap.xml för bättre indexering")
+                    recommendations.append(f"  ⚠️ {issue}")
+                    recommendations.append("     → Skapa sitemap.xml för bättre indexering")
                 elif "cloaking" in issue.lower():
-                    recommendations.append(f"  🔴 {issue} - Risk för Google-bestraffning!")
+                    recommendations.append(f"  🔴 {issue}")
+                    recommendations.append("     → Risk för Google-bestraffning! Visa samma content för alla")
+                elif "mobile" in issue.lower():
+                    recommendations.append(f"  🔴 {issue}")
+                    recommendations.append("     → Kritiskt för Mobile-First Indexing")
+                elif "redirect" in issue.lower():
+                    recommendations.append(f"  ⚠️ {issue}")
+                    recommendations.append("     → Korta ner redirect-kedjor till max 1-2 hopp")
+                elif "robots.txt" in issue.lower():
+                    recommendations.append(f"  🔴 {issue}")
+                    recommendations.append("     → Uppdatera robots.txt för att tillåta viktiga crawlers")
+                elif "CSS/JS" in issue or "resurser" in issue.lower():
+                    recommendations.append(f"  ⚠️ {issue}")
+                    recommendations.append("     → Se till att CSS/JS är tillgängligt för Googlebot")
+                elif "throttl" in issue.lower() or "långsam" in issue.lower():
+                    recommendations.append(f"  ⚠️ {issue}")
+                    recommendations.append("     → Optimera server-respons för botar")
                 else:
                     recommendations.append(f"  ⚠️ {issue}")
-        else:
             recommendations.append("")
-            recommendations.append("🔍 SEO-REKOMMENDATIONER:")
-            recommendations.append("  ✅ Inga SEO-problem detekterade!")
+        else:
+            recommendations.append("🔍 SEO CRAWLBARHET-REKOMMENDATIONER:")
+            recommendations.append("  ✅ Inga SEO-problem detekterade! Sidan är väl optimerad för crawlers.")
+            recommendations.append("")
 
         # SERVER PERFORMANCE-REKOMMENDATIONER
         if self.server_performance_issues:
+            recommendations.append("⚡ SERVER PERFORMANCE (påverkar SEO):")
             recommendations.append("")
-            recommendations.append("⚡ SERVER PERFORMANCE-REKOMMENDATIONER:")
             for issue in self.server_performance_issues:
                 if "TTFB" in issue and "KRITISKT" in issue:
                     recommendations.append(f"  🔴 {issue}")
@@ -1747,7 +2189,6 @@ class AdvancedBotProtectionTester:
                 elif "långsam" in issue.lower():
                     recommendations.append(f"  🔴 {issue}")
                     recommendations.append("     → Uppgradera server-resurser (CPU, RAM)")
-                    recommendations.append("     → Byt till snabbare webbhotell")
                     recommendations.append("     → Långsam server påverkar SEO rankings negativt")
                 elif "klarar inte" in issue.lower():
                     recommendations.append(f"  🔴 {issue}")
@@ -1756,14 +2197,11 @@ class AdvancedBotProtectionTester:
                 elif "inkonsekvent" in issue.lower():
                     recommendations.append(f"  ⚠️ {issue}")
                     recommendations.append("     → Instabil server kan skada user experience och SEO")
-                elif "föråldrad" in issue.lower():
-                    recommendations.append(f"  ⚠️ {issue}")
-                    recommendations.append("     → Uppdatera server-programvara för säkerhet och performance")
                 else:
                     recommendations.append(f"  ⚠️ {issue}")
 
-        if not self.vulnerabilities and not self.seo_issues:
-            recommendations = ["✅ Utmärkt säkerhet och SEO-vänlighet! Fortsätt övervaka och uppdatera regelbundet."]
+        if not self.seo_issues and not self.server_performance_issues:
+            recommendations = ["✅ Utmärkt SEO crawlbarhet! Googlebot och andra sökmotorbotar kan nå sidan utan problem."]
 
         return recommendations
     
@@ -1774,32 +2212,39 @@ class AdvancedBotProtectionTester:
         # Test 0: Connectivity (måste fungera för övriga tester)
         connectivity = self.test_basic_connectivity()
         self.results.append(connectivity)
-        
+
         if not connectivity.passed:
             self._log("\n❌ Kunde inte nå servern. Avbryter tester.\n", "")
+            # Kör diagnostik även vid fel för att visa var problemet är
+            self._log("Kör detaljerad server-diagnostik...", "🔬")
+            diag = self._measure_server_diagnostics()
+            self._update_server_diagnostics(diag)
             return self.generate_report()
-        
+
+        # Kör detaljerad server-diagnostik
+        self._log("Kör detaljerad server-diagnostik...", "🔬")
+        diag = self._measure_server_diagnostics()
+        self._update_server_diagnostics(diag)
+
         time.sleep(1)
         
-        # Kör alla tester med delays
+        # Kör alla SEO-tester med delays
         test_methods = [
-            self.test_aggressive_rate_limiting,
-            self.test_comprehensive_user_agent_filtering,
-            self.test_behavioral_analysis,
-            self.test_waf_and_challenge_detection,
-            self.test_advanced_fingerprinting,
-            self.test_api_endpoint_protection,
-            # SEO-tester
+            # SEO Bot Accessibility tester
             self.test_seo_bot_accessibility,
             self.test_robots_txt,
             self.test_sitemap_accessibility,
             self.test_cloaking_detection,
-            # AI Bot & Server Bot-skydd tester
             self.test_ai_bot_accessibility,
+            # Googlebot-specifika tester
             self.test_response_time_comparison,
             self.test_googlebot_stress_test,
             self.test_bot_differential_treatment,
             self.test_progressive_blocking,
+            # Mobile-First & Resource tester
+            self.test_mobile_vs_desktop_googlebot,
+            self.test_blocked_resources,
+            self.test_protocol_consistency,
             # Server Performance tester
             self.test_server_performance,
             self.test_server_load_handling,
@@ -1835,7 +2280,10 @@ class AdvancedBotProtectionTester:
             vulnerabilities=self.vulnerabilities,
             seo_issues=self.seo_issues,
             recommendations=recommendations,
-            test_results=[asdict(r) for r in self.results]
+            test_results=[asdict(r) for r in self.results],
+            bot_accessibility_details=self.bot_accessibility_details,
+            server_performance_details=self.server_performance_details,
+            server_diagnostics=self.server_diagnostics
         )
         
         return report
@@ -1863,23 +2311,11 @@ class AdvancedBotProtectionTester:
             print()
         
         print("="*70)
-        print(f"🎯 SÄKERHETSPOÄNG: {report.total_score}/100")
+        print(f"🎯 SEO CRAWLBARHET POÄNG: {report.total_score}/100")
         print(f"📊 BEDÖMNING: {report.rating}")
         print(f"✅ Godkända tester: {report.tests_passed}")
         print(f"❌ Misslyckade tester: {report.tests_failed}")
         print("="*70 + "\n")
-        
-        if report.protection_layers:
-            print("🛡️  DETEKTERADE SKYDDSLAGER:")
-            for layer in report.protection_layers:
-                print(f"   • {layer}")
-            print()
-        
-        if report.vulnerabilities:
-            print("⚠️  IDENTIFIERADE SÄKERHETSSÅRBARHETER:")
-            for vuln in report.vulnerabilities:
-                print(f"   • {vuln}")
-            print()
 
         if self.seo_issues:
             print("🔍 IDENTIFIERADE SEO-PROBLEM:")
@@ -1910,7 +2346,7 @@ class AdvancedBotProtectionTester:
         """Exporterar rapport till JSON"""
         if filename is None:
             domain = urlparse(self.target_url).netloc.replace('.', '_')
-            filename = f"bot_protection_report_{domain}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filename = f"seo_crawlability_report_{domain}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(asdict(report), f, indent=2, ensure_ascii=False)
@@ -1919,27 +2355,53 @@ class AdvancedBotProtectionTester:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python advanced_bot_tester.py <URL> [--json] [--quiet]")
+        print("Usage: python advanced_bot_tester.py <URL> [--pdf] [--json] [--quiet]")
+        print("\nSEO Crawlability Tester - Testar hur väl sökmotorbotar kan crawla din sida")
         print("\nExempel:")
         print("  python advanced_bot_tester.py https://example.com")
-        print("  python advanced_bot_tester.py example.com --json")
-        print("  python advanced_bot_tester.py example.com --quiet")
+        print("  python advanced_bot_tester.py example.com --pdf      # Generera PDF-rapport")
+        print("  python advanced_bot_tester.py example.com --json     # Exportera JSON")
+        print("  python advanced_bot_tester.py example.com --quiet    # Mindre output")
+        print("\nTestar:")
+        print("  • Googlebot/Bingbot tillgänglighet")
+        print("  • Mobile vs Desktop Googlebot")
+        print("  • robots.txt & sitemap.xml")
+        print("  • Cloaking detection")
+        print("  • CSS/JS resurs-blockering")
+        print("  • HTTP/HTTPS redirects")
+        print("  • Server performance (TTFB, SSL, komprimering)")
+        print("\nFör säkerhetstester, använd: python security_bot_tester.py <URL>")
         sys.exit(1)
-    
+
     url = sys.argv[1]
-    export_json = '--json' in sys.argv
+    export_json_flag = '--json' in sys.argv
+    export_pdf = '--pdf' in sys.argv
     quiet = '--quiet' in sys.argv
-    
+
     tester = AdvancedBotProtectionTester(url, verbose=not quiet)
-    
+
     try:
         report = tester.run_all_tests()
         tester.print_report(report)
-        
-        if export_json:
+
+        if export_json_flag:
             filename = tester.export_json(report)
-            print(f"📄 Rapport exporterad till: {filename}")
-            
+            print(f"📄 JSON-rapport exporterad: {filename}")
+
+        if export_pdf:
+            try:
+                from pdf_report_generator import generate_pdf_report
+
+                # Konvertera report till dict för PDF-generatorn
+                report_dict = asdict(report)
+
+                pdf_path = generate_pdf_report(report_dict)
+                print(f"📄 PDF-rapport genererad: {pdf_path}")
+
+            except ImportError as e:
+                print(f"\n⚠️  Kunde inte importera pdf_report_generator: {e}")
+                print("   Kontrollera att pdf_report_generator.py finns i samma mapp")
+
     except KeyboardInterrupt:
         print("\n\n⚠️ Test avbrutet av användaren")
         sys.exit(0)
