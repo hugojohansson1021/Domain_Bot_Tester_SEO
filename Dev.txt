@@ -1,6 +1,6 @@
 # Eller manuellt om du vill
 source venv/bin/activate
-python advanced_bot_tester.py klemensson.com
+python advanced_bot_tester.py https://www.rumforinspiration.se/product-category/skriva-skapa/skrivbocker-anteckningsbocker/
 deactivate
 
 

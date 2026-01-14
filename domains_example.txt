@@ -1,0 +1,16 @@
+# Exempel domänlista för bot-skydd audit
+# En domän per rad
+# Kommentarer börjar med #
+# Du kan använda domäner med eller utan https://
+
+# Exempel domäner (ersätt med dina egna kunder):
+example.com
+google.com
+cloudflare.com
+
+# Du kan också inkludera hela URL:er
+# https://www.example.com
+# http://another-example.com
+
+# För att använda denna fil, kör:
+# python bot_protection_tester.py --file domains_example.txt
