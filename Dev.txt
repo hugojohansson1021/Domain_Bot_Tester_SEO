@@ -17,7 +17,7 @@ pip install requests urllib3
 python advanced_bot_tester.py https://www.totalfonster.se/
 
 # Generera PDF-rapport
-  python advanced_bot_tester.py https://www.totalfonster.se/ --pdf
+  python advanced_bot_tester.py https://klemensson.com/ --pdf
 
 
 
